@@ -54,16 +54,31 @@ class CVT_Ajax {
 
 	/**
 	 * Remove an item image.
+	 * Verifies the requesting user has permission to edit this specific item,
+	 * not just the capability in general.
 	 */
 	public function remove_item_image() {
 		check_ajax_referer( 'cvt_ajax', 'nonce' );
 
-		if ( ! current_user_can( 'cvt_edit_own_item' ) ) {
-			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
-		}
-
 		$item_id      = absint( $_POST['item_id'] ?? 0 );
 		$image_row_id = absint( $_POST['image_row_id'] ?? 0 );
+
+		if ( ! $item_id ) {
+			wp_send_json_error( array( 'message' => 'Invalid item.' ), 400 );
+		}
+
+		// Load the item to check ownership before acting.
+		$item = CVT_Item::get( $item_id );
+		if ( ! $item ) {
+			wp_send_json_error( array( 'message' => 'Item not found.' ), 404 );
+		}
+
+		$is_owner = (int) $item->created_by === get_current_user_id();
+		$cap      = $is_owner ? 'cvt_edit_own_item' : 'cvt_edit_any_item';
+
+		if ( ! current_user_can( $cap ) ) {
+			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
+		}
 
 		$result = CVT_Item::remove_image( $item_id, $image_row_id );
 		if ( is_wp_error( $result ) ) {

@@ -86,7 +86,10 @@ class CVT_Activity_Log {
 	 * Returns a human-readable sentence describing a log action.
 	 */
 	public static function describe( $log_entry ) {
-		$actor = $log_entry->display_name ?: 'System';
+		// esc_html() here prevents XSS from user-supplied display names (e.g. "<script>").
+		// The output is further passed through wp_kses() in every view, but we escape
+		// at the source so the string is always safe regardless of how it is consumed.
+		$actor = esc_html( $log_entry->display_name ?: 'System' );
 		$new   = $log_entry->new_value ? json_decode( $log_entry->new_value, true ) : array();
 		$old   = $log_entry->old_value ? json_decode( $log_entry->old_value, true ) : array();
 
@@ -95,8 +98,8 @@ class CVT_Activity_Log {
 				return "$actor created this record.";
 
 			case 'status_changed':
-				$from = CVT_Settings::status_info( $old['status'] ?? '' )['label'] ?? ( $old['status'] ?? '?' );
-				$to   = CVT_Settings::status_info( $new['status'] ?? '' )['label'] ?? ( $new['status'] ?? '?' );
+				$from = esc_html( CVT_Settings::status_info( $old['status'] ?? '' )['label'] ?? ( $old['status'] ?? '?' ) );
+				$to   = esc_html( CVT_Settings::status_info( $new['status'] ?? '' )['label'] ?? ( $new['status'] ?? '?' ) );
 				return "$actor changed status from <strong>$from</strong> to <strong>$to</strong>.";
 
 			case 'updated':
@@ -106,8 +109,8 @@ class CVT_Activity_Log {
 				return "$actor — payout record auto-created on sale.";
 
 			case 'payout_marked_paid':
-				$ref = $new['reference'] ?? '';
-				return "$actor marked payout as Paid" . ( $ref ? " (ref: <strong>" . esc_html( $ref ) . "</strong>)" : '' ) . '.';
+				$ref = esc_html( $new['reference'] ?? '' );
+				return "$actor marked payout as Paid" . ( $ref ? " (ref: <strong>$ref</strong>)" : '' ) . '.';
 
 			case 'note_added':
 				return "$actor added a note.";

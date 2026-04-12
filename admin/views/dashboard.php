@@ -108,8 +108,12 @@ $sold_month   = (int) $wpdb->get_var( $wpdb->prepare(
 					$entity_url = '#';
 					if ( $log->entity_type === 'vendor' ) {
 						$entity_url = admin_url( 'admin.php?page=cvt-vendors&action=view&id=' . $log->entity_id );
-					} elseif ( $log->entity_type === 'item' || $log->entity_type === 'payout' ) {
+					} elseif ( $log->entity_type === 'item' ) {
 						$entity_url = admin_url( 'admin.php?page=cvt-items&action=view&id=' . $log->entity_id );
+					} elseif ( $log->entity_type === 'payout' ) {
+						// entity_id is the payout ID, not the item ID — link to payout's item via the payouts list.
+						// We avoid an extra per-row query here; the full detail is one click away.
+						$entity_url = admin_url( 'admin.php?page=cvt-payouts' );
 					}
 				?>
 				<li class="cvt-activity-item">

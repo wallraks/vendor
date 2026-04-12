@@ -25,7 +25,7 @@ Internal WordPress plugin for [Corido Marketplace](https://corido.co.ke) — a K
 
 | Requirement | Minimum |
 |---|---|
-| WordPress | 5.8+ |
+| WordPress | 6.2+ |
 | PHP | 7.4+ |
 | MySQL / MariaDB | 5.6+ |
 | Theme | Any (tested with Listivo) |
@@ -431,6 +431,12 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.0.1 — Bug Fixes
+- **Security:** Escaped `$actor` (user display name) with `esc_html()` in `CVT_Activity_Log::describe()` to prevent XSS from maliciously crafted display names.
+- **Bug fix:** Dashboard activity feed now correctly links payout log entries to the Payouts list instead of incorrectly using the payout ID as an item ID.
+- **Bug fix:** AJAX image removal handler now verifies per-item ownership before acting, not just the global capability.
+- **Compatibility:** Updated minimum WordPress requirement from 5.8 to 6.2 to match usage of `%i` identifier placeholder in `$wpdb->prepare()`.
 
 ### 1.0.0 — Initial Release
 - Custom DB tables: vendors, items, item_images, payouts, activity_log.

@@ -4,7 +4,7 @@
  * Plugin URI:        https://corido.co.ke
  * Description:       Internal vendor and item tracking system for Corido Marketplace — manage vendors, items, deal statuses, commissions, and payouts from WordPress admin.
  * Version:           1.0.0
- * Requires at least: 5.8
+ * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Corido Marketplace
  * Author URI:        https://corido.co.ke

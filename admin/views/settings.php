@@ -4,7 +4,8 @@ if ( ! current_user_can( 'cvt_manage_settings' ) ) {
 	wp_die( esc_html__( 'You do not have permission to access settings.', 'corido-vendor-tracker' ) );
 }
 
-$agents = CVT_Roles::get_agents();
+$agents      = CVT_Roles::get_agents();
+$source_info = CVT_Settings::categories_source_info();
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -15,9 +16,9 @@ $agents = CVT_Roles::get_agents();
 
 	<div class="cvt-settings-grid">
 
-		<!-- Commission & Categories -->
+		<!-- Commission Settings -->
 		<div class="cvt-card">
-			<h2 class="cvt-card-title"><?php esc_html_e( 'Commission & Categories', 'corido-vendor-tracker' ); ?></h2>
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?></h2>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
 				<input type="hidden" name="action" value="cvt_save_settings">
@@ -50,22 +51,88 @@ $agents = CVT_Roles::get_agents();
 					</p>
 				</div>
 
-				<hr>
+				<button type="submit" class="button button-primary">
+					<?php esc_html_e( 'Save Commission Rate', 'corido-vendor-tracker' ); ?>
+				</button>
+			</form>
+		</div>
+
+		<!-- Listivo Category Integration -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Item Categories', 'corido-vendor-tracker' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
+				<input type="hidden" name="action" value="cvt_save_settings">
 
 				<div class="cvt-field">
+					<label for="cvt_listivo_taxonomy">
+						<?php esc_html_e( 'Listivo Category Taxonomy', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_listivo_taxonomy" name="cvt_listivo_taxonomy"
+						class="regular-text"
+						value="<?php echo esc_attr( CVT_Settings::get_listivo_taxonomy() ); ?>"
+						placeholder="listivo_category">
+					<p class="description">
+						<?php esc_html_e( 'Taxonomy slug that Listivo uses for item categories (CT custom taxonomy). When connected, item forms will pull categories directly from your Listivo setup — no manual list needed.', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+
+				<!-- Connection status indicator -->
+				<?php if ( $source_info['source'] === 'listivo' ) : ?>
+				<div class="cvt-taxonomy-status cvt-taxonomy-status--connected">
+					<span class="dashicons dashicons-yes-alt"></span>
+					<?php echo esc_html( sprintf(
+						/* translators: 1: number of categories, 2: taxonomy slug */
+						__( 'Connected — %1$d categories found in "%2$s"', 'corido-vendor-tracker' ),
+						$source_info['count'],
+						$source_info['taxonomy']
+					) ); ?>
+				</div>
+				<details class="cvt-taxonomy-preview">
+					<summary><?php esc_html_e( 'Preview categories', 'corido-vendor-tracker' ); ?></summary>
+					<ul class="cvt-taxonomy-list">
+						<?php foreach ( CVT_Settings::categories() as $cat ) : ?>
+						<li><?php echo esc_html( $cat ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+				</details>
+				<?php elseif ( $source_info['source'] === 'listivo_empty' ) : ?>
+				<div class="cvt-taxonomy-status cvt-taxonomy-status--warning">
+					<span class="dashicons dashicons-warning"></span>
+					<?php echo esc_html( sprintf(
+						/* translators: %s: taxonomy slug */
+						__( 'Taxonomy "%s" exists but has no terms. Add categories in Appearance → Taxonomies or use the manual list below.', 'corido-vendor-tracker' ),
+						$source_info['taxonomy']
+					) ); ?>
+				</div>
+				<?php else : ?>
+				<div class="cvt-taxonomy-status cvt-taxonomy-status--disconnected">
+					<span class="dashicons dashicons-dismiss"></span>
+					<?php echo esc_html( sprintf(
+						/* translators: %s: taxonomy slug */
+						__( 'Taxonomy "%s" not found. Check the slug or install/activate Listivo. Using manual list below.', 'corido-vendor-tracker' ),
+						$source_info['taxonomy']
+					) ); ?>
+				</div>
+				<?php endif; ?>
+
+				<?php if ( $source_info['source'] !== 'listivo' ) : ?>
+				<!-- Manual fallback — shown only when Listivo taxonomy is not connected -->
+				<div class="cvt-field" style="margin-top: 16px;">
 					<label for="categories">
-						<?php esc_html_e( 'Item Categories', 'corido-vendor-tracker' ); ?>
+						<?php esc_html_e( 'Manual Category List', 'corido-vendor-tracker' ); ?>
 					</label>
 					<textarea id="categories" name="categories" rows="10" class="widefat"><?php
 						echo esc_textarea( get_option( 'cvt_categories', '' ) );
 					?></textarea>
 					<p class="description">
-						<?php esc_html_e( 'One category per line. Changes take effect immediately for new items.', 'corido-vendor-tracker' ); ?>
+						<?php esc_html_e( 'One category per line. Used as fallback when the Listivo taxonomy is not available.', 'corido-vendor-tracker' ); ?>
 					</p>
 				</div>
+				<?php endif; ?>
 
 				<button type="submit" class="button button-primary">
-					<?php esc_html_e( 'Save Settings', 'corido-vendor-tracker' ); ?>
+					<?php esc_html_e( 'Save Categories', 'corido-vendor-tracker' ); ?>
 				</button>
 			</form>
 		</div>

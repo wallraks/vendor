@@ -376,22 +376,36 @@ class CVT_Item {
 
 	/**
 	 * Sanitize and validate item input fields.
+	 * Input is expected to have already been run through wp_unslash() at the
+	 * controller layer (admin/class-cvt-admin.php form handlers).
 	 */
 	private static function sanitize( array $data ) {
 		$allowed_types = array( 'consignment', 'agency' );
+		$max           = CVT_Settings::max_lengths();
+
+		// Validate date format (YYYY-MM-DD) before storing.
+		$date_received = null;
+		if ( ! empty( $data['date_received'] ) ) {
+			$d = sanitize_text_field( $data['date_received'] );
+			$date_received = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $d ) ? $d : null;
+		}
+
+		// Clamp selling price to a sane positive range.
+		$selling_price = max( 0, (float) ( $data['selling_price'] ?? 0 ) );
+
 		return array(
-			'vendor_id'          => absint( $data['vendor_id'] ?? 0 ),
-			'title'              => sanitize_text_field( $data['title'] ?? '' ),
-			'description'        => sanitize_textarea_field( $data['description'] ?? '' ),
-			'category'           => sanitize_text_field( $data['category'] ?? '' ),
-			'market_value'       => ! empty( $data['market_value'] ) ? (float) $data['market_value'] : null,
-			'selling_price'      => (float) ( $data['selling_price'] ?? 0 ),
-			'deal_type'          => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
+			'vendor_id'           => absint( $data['vendor_id'] ?? 0 ),
+			'title'               => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
+			'description'         => sanitize_textarea_field( $data['description'] ?? '' ),
+			'category'            => substr( sanitize_text_field( $data['category'] ?? '' ), 0, $max['category'] ),
+			'market_value'        => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
+			'selling_price'       => $selling_price,
+			'deal_type'           => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
 				? $data['deal_type'] : 'consignment',
-			'assigned_agent_id'  => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
-			'listivo_listing_url' => esc_url_raw( $data['listivo_listing_url'] ?? '' ),
-			'date_received'      => ! empty( $data['date_received'] ) ? sanitize_text_field( $data['date_received'] ) : null,
-			'notes'              => sanitize_textarea_field( $data['notes'] ?? '' ),
+			'assigned_agent_id'   => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
+			'listivo_listing_url' => substr( esc_url_raw( $data['listivo_listing_url'] ?? '' ), 0, $max['listivo_listing_url'] ),
+			'date_received'       => $date_received,
+			'notes'               => sanitize_textarea_field( $data['notes'] ?? '' ),
 		);
 	}
 }

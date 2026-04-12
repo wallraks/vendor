@@ -1,30 +1,65 @@
 <?php defined( 'ABSPATH' ) || exit;
 
-$item_id = absint( $_GET['id'] ?? 0 );
-$item    = CVT_Item::get( $item_id );
+$item_id     = absint( $_GET['id'] ?? 0 );
+$item        = CVT_Item::get( $item_id );
 if ( ! $item ) {
 	wp_die( esc_html__( 'Item not found.', 'corido-vendor-tracker' ) );
 }
 
-$images     = CVT_Item::get_images( $item_id );
-$logs       = CVT_Activity_Log::get_for_entity( 'item', $item_id );
+$images      = CVT_Item::get_images( $item_id );
+$logs        = CVT_Activity_Log::get_for_entity( 'item', $item_id );
 $status_info = CVT_Settings::status_info( $item->status );
-$valid_next = CVT_Settings::valid_transitions( $item->status );
+$valid_next  = CVT_Settings::valid_transitions( $item->status );
+
+// Build status history: first time each status was entered, derived from activity log.
+// Logs are newest-first; we iterate oldest-first to capture first-entry dates.
+$status_dates = array( 'under_review' => $item->created_at );
+foreach ( array_reverse( $logs ) as $log ) {
+	if ( $log->action === 'status_changed' ) {
+		$new    = json_decode( $log->new_value, true );
+		$status = $new['status'] ?? '';
+		if ( $status && ! isset( $status_dates[ $status ] ) ) {
+			$status_dates[ $status ] = $log->created_at;
+		}
+	}
+}
+
+// Allowed next transitions filtered by capability.
+$allowed_next = array();
+foreach ( $valid_next as $ns ) {
+	if ( $ns === 'sold'      && ! current_user_can( 'cvt_update_status_sold' ) )      continue;
+	if ( $ns === 'withdrawn' && ! current_user_can( 'cvt_update_status_withdrawn' ) ) continue;
+	$allowed_next[] = $ns;
+}
+
+// Pipeline stages for the stepper (excludes 'withdrawn' which is a side branch).
+$pipeline       = CVT_Settings::pipeline_stages();
+$current_index  = array_search( $item->status, $pipeline, true ); // false if withdrawn
 
 // Payout record (if sold or closed).
 $payout = null;
 if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 	global $wpdb;
-	$payout = $wpdb->get_row(
-		$wpdb->prepare(
-			"SELECT p.*, u.display_name AS processed_by_name
-			 FROM {$wpdb->prefix}cvt_payouts p
-			 LEFT JOIN {$wpdb->users} u ON u.ID = p.processed_by
-			 WHERE p.item_id = %d ORDER BY p.id DESC LIMIT 1",
-			$item_id
-		)
-	);
+	$payout = $wpdb->get_row( $wpdb->prepare(
+		"SELECT p.*, u.display_name AS processed_by_name
+		 FROM {$wpdb->prefix}cvt_payouts p
+		 LEFT JOIN {$wpdb->users} u ON u.ID = p.processed_by
+		 WHERE p.item_id = %d ORDER BY p.id DESC LIMIT 1",
+		$item_id
+	) );
 }
+
+$can_edit = current_user_can( 'cvt_edit_any_item' )
+	|| ( (int) $item->created_by === get_current_user_id() && current_user_can( 'cvt_edit_own_item' ) );
+
+// Button colour map per target status.
+$action_btn_class = array(
+	'posted'           => 'cvt-status-btn--posted',
+	'inquiry_received' => 'cvt-status-btn--inquiry',
+	'sold'             => 'cvt-status-btn--sold',
+	'closed'           => 'cvt-status-btn--closed',
+	'withdrawn'        => 'cvt-status-btn--withdrawn',
+);
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -38,10 +73,7 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 			</span>
 		</h1>
 		<div class="cvt-page-actions">
-			<?php
-			$can_edit = current_user_can( 'cvt_edit_any_item' )
-				|| ( (int) $item->created_by === get_current_user_id() && current_user_can( 'cvt_edit_own_item' ) );
-			if ( $can_edit ) : ?>
+			<?php if ( $can_edit ) : ?>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-items&action=edit&id=' . $item_id ) ); ?>" class="button">
 				<?php esc_html_e( 'Edit Item', 'corido-vendor-tracker' ); ?>
 			</a>
@@ -51,6 +83,109 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 
 	<?php CVT_Admin::render_notice(); ?>
 
+	<!-- ================================================================
+	     STATUS STEPPER — full-width, shown above the detail grid
+	     ================================================================ -->
+	<div class="cvt-card cvt-stepper-card">
+
+		<?php if ( $item->status === 'withdrawn' ) : ?>
+		<!-- Withdrawn banner -->
+		<div class="cvt-withdrawn-banner">
+			<span class="dashicons dashicons-no-alt"></span>
+			<?php
+			$withdrawn_date = isset( $status_dates['withdrawn'] )
+				? date_i18n( 'd M Y', strtotime( $status_dates['withdrawn'] ) )
+				: '';
+			echo esc_html( sprintf(
+				__( 'This item was withdrawn%s.', 'corido-vendor-tracker' ),
+				$withdrawn_date ? ' on ' . $withdrawn_date : ''
+			) );
+			?>
+		</div>
+		<?php endif; ?>
+
+		<!-- Stepper steps -->
+		<div class="cvt-stepper">
+			<?php foreach ( $pipeline as $i => $stage ) :
+				$info     = CVT_Settings::status_info( $stage );
+				$visited  = isset( $status_dates[ $stage ] );
+				$is_active = ( $item->status === $stage );
+				// A step is "completed" if it was visited AND the current status is a later pipeline stage.
+				$is_completed = $visited && ( $current_index !== false ) && ( $i < $current_index );
+				$is_future    = ! $visited && ! $is_active;
+
+				if ( $is_completed )  $step_class = 'cvt-step--completed';
+				elseif ( $is_active ) $step_class = 'cvt-step--active';
+				elseif ( $visited )   $step_class = 'cvt-step--visited'; // visited but not current linear position (e.g. went back)
+				else                  $step_class = 'cvt-step--future';
+			?>
+			<div class="cvt-step <?php echo esc_attr( $step_class ); ?>">
+				<div class="cvt-step-indicator">
+					<?php if ( $is_completed ) : ?>
+					<span class="dashicons dashicons-yes-alt"></span>
+					<?php elseif ( $is_active ) : ?>
+					<span class="cvt-step-number"><?php echo esc_html( $i + 1 ); ?></span>
+					<?php else : ?>
+					<span class="cvt-step-number"><?php echo esc_html( $i + 1 ); ?></span>
+					<?php endif; ?>
+				</div>
+				<div class="cvt-step-body">
+					<div class="cvt-step-label"><?php echo esc_html( $info['label'] ); ?></div>
+					<?php if ( $visited && isset( $status_dates[ $stage ] ) ) : ?>
+					<div class="cvt-step-date">
+						<?php echo esc_html( date_i18n( 'd M Y', strtotime( $status_dates[ $stage ] ) ) ); ?>
+					</div>
+					<?php elseif ( $is_future ) : ?>
+					<div class="cvt-step-date cvt-step-date--pending">—</div>
+					<?php endif; ?>
+				</div>
+			</div>
+			<?php if ( $i < count( $pipeline ) - 1 ) : ?>
+			<div class="cvt-step-connector <?php echo esc_attr( $is_completed ? 'cvt-step-connector--done' : '' ); ?>"></div>
+			<?php endif; ?>
+			<?php endforeach; ?>
+		</div><!-- .cvt-stepper -->
+
+		<!-- Quick status action buttons -->
+		<?php if ( ! empty( $allowed_next ) && $item->status !== 'closed' ) : ?>
+		<div class="cvt-status-actions">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="cvt-status-form">
+				<?php wp_nonce_field( 'cvt_update_status' ); ?>
+				<input type="hidden" name="action"   value="cvt_update_status">
+				<input type="hidden" name="item_id"  value="<?php echo esc_attr( $item_id ); ?>">
+				<input type="hidden" name="new_status" id="cvt-new-status-input" value="">
+
+				<div class="cvt-status-actions-inner">
+					<div class="cvt-status-actions-btns">
+						<span class="cvt-status-actions-label"><?php esc_html_e( 'Move to:', 'corido-vendor-tracker' ); ?></span>
+						<?php foreach ( $allowed_next as $ns ) :
+							$ns_info = CVT_Settings::status_info( $ns );
+							$btn_cls = $action_btn_class[ $ns ] ?? '';
+						?>
+						<button type="submit" class="cvt-status-btn <?php echo esc_attr( $btn_cls ); ?>"
+							data-status="<?php echo esc_attr( $ns ); ?>">
+							<?php echo esc_html( $ns_info['label'] ); ?>
+						</button>
+						<?php endforeach; ?>
+					</div>
+					<div class="cvt-status-actions-note">
+						<input type="text" name="note" class="widefat"
+							placeholder="<?php esc_attr_e( 'Add a note to this update (optional)…', 'corido-vendor-tracker' ); ?>">
+					</div>
+				</div>
+			</form>
+		</div>
+		<?php elseif ( $item->status === 'closed' ) : ?>
+		<p class="cvt-stepper-terminal">
+			<?php esc_html_e( 'This item is closed. All done.', 'corido-vendor-tracker' ); ?>
+		</p>
+		<?php endif; ?>
+
+	</div><!-- .cvt-stepper-card -->
+
+	<!-- ================================================================
+	     MAIN DETAIL GRID
+	     ================================================================ -->
 	<div class="cvt-detail-grid">
 		<div class="cvt-detail-main">
 
@@ -86,7 +221,7 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 						<span class="cvt-info-value cvt-price"><?php echo esc_html( CVT_Settings::format_currency( $item->selling_price ) ); ?></span>
 					</div>
 					<div class="cvt-info-row">
-						<span class="cvt-info-label"><?php esc_html_e( 'Agent', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-label"><?php esc_html_e( 'Assigned Agent', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value"><?php echo esc_html( $item->agent_name ?: '—' ); ?></span>
 					</div>
 					<div class="cvt-info-row">
@@ -130,7 +265,7 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 				<h2 class="cvt-card-title"><?php esc_html_e( 'Images', 'corido-vendor-tracker' ); ?></h2>
 				<div class="cvt-image-grid">
 					<?php foreach ( $images as $img ) :
-						$url = wp_get_attachment_image_url( $img->attachment_id, 'medium' );
+						$url  = wp_get_attachment_image_url( $img->attachment_id, 'medium' );
 						$full = wp_get_attachment_url( $img->attachment_id );
 					?>
 					<a href="<?php echo esc_url( $full ); ?>" target="_blank" class="cvt-image-thumb cvt-image-thumb--view">
@@ -179,7 +314,7 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 					<?php elseif ( current_user_can( 'cvt_mark_payouts' ) ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cvt-payout-form">
 						<?php wp_nonce_field( 'cvt_save_payout' ); ?>
-						<input type="hidden" name="action" value="cvt_save_payout">
+						<input type="hidden" name="action"    value="cvt_save_payout">
 						<input type="hidden" name="payout_id" value="<?php echo esc_attr( $payout->id ); ?>">
 						<div class="cvt-field-row">
 							<div class="cvt-field">
@@ -230,42 +365,57 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 
 		</div><!-- .cvt-detail-main -->
 
-		<!-- Sidebar -->
+		<!-- Sidebar: vendor quick-ref and payout shortcut -->
 		<div class="cvt-detail-sidebar">
 
-			<!-- Status update -->
-			<?php if ( ! empty( $valid_next ) || current_user_can( 'cvt_manage_settings' ) ) : ?>
 			<div class="cvt-card">
-				<h2 class="cvt-card-title"><?php esc_html_e( 'Update Status', 'corido-vendor-tracker' ); ?></h2>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'cvt_update_status' ); ?>
-					<input type="hidden" name="action" value="cvt_update_status">
-					<input type="hidden" name="item_id" value="<?php echo esc_attr( $item_id ); ?>">
-					<div class="cvt-field">
-						<label for="new_status"><?php esc_html_e( 'New Status', 'corido-vendor-tracker' ); ?></label>
-						<select id="new_status" name="new_status" class="widefat">
-							<?php foreach ( $valid_next as $ns ) :
-								// Check capability for each status.
-								if ( $ns === 'sold' && ! current_user_can( 'cvt_update_status_sold' ) ) continue;
-								if ( $ns === 'withdrawn' && ! current_user_can( 'cvt_update_status_withdrawn' ) ) continue;
-								$info = CVT_Settings::status_info( $ns );
-							?>
-							<option value="<?php echo esc_attr( $ns ); ?>"><?php echo esc_html( $info['label'] ); ?></option>
-							<?php endforeach; ?>
-						</select>
+				<h2 class="cvt-card-title"><?php esc_html_e( 'Vendor', 'corido-vendor-tracker' ); ?></h2>
+				<div class="cvt-info-grid cvt-info-grid--single">
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Name', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-vendors&action=view&id=' . $item->vendor_id ) ); ?>">
+								<?php echo esc_html( $item->vendor_name ?: '—' ); ?>
+							</a>
+						</span>
 					</div>
-					<div class="cvt-field">
-						<label for="note"><?php esc_html_e( 'Note (optional)', 'corido-vendor-tracker' ); ?></label>
-						<textarea id="note" name="note" rows="2" class="widefat"
-							placeholder="<?php esc_attr_e( 'e.g. Buyer called at 2pm, interested in viewing…', 'corido-vendor-tracker' ); ?>"></textarea>
+					<?php if ( $item->vendor_phone ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<a href="tel:<?php echo esc_attr( $item->vendor_phone ); ?>"><?php echo esc_html( $item->vendor_phone ); ?></a>
+						</span>
 					</div>
-					<button type="submit" class="button button-primary">
-						<?php esc_html_e( 'Update Status', 'corido-vendor-tracker' ); ?>
-					</button>
-				</form>
+					<?php endif; ?>
+				</div>
+			</div>
+
+			<?php if ( $payout && $payout->status === 'pending' && current_user_can( 'cvt_mark_payouts' ) ) : ?>
+			<div class="cvt-card cvt-card--highlight">
+				<h2 class="cvt-card-title"><?php esc_html_e( 'Payout Due', 'corido-vendor-tracker' ); ?></h2>
+				<p class="cvt-payout-due-amount"><?php echo esc_html( CVT_Settings::format_currency( $payout->payout_amount ) ); ?></p>
+				<a href="#cvt-payout-card" class="button button-primary" style="width:100%;text-align:center;">
+					<?php esc_html_e( 'Mark as Paid ↓', 'corido-vendor-tracker' ); ?>
+				</a>
 			</div>
 			<?php endif; ?>
 
 		</div><!-- .cvt-detail-sidebar -->
 	</div><!-- .cvt-detail-grid -->
 </div>
+
+<script>
+// Wire each quick-action status button to set the hidden input before submit.
+(function() {
+	var form    = document.getElementById('cvt-status-form');
+	var input   = document.getElementById('cvt-new-status-input');
+	if ( ! form || ! input ) return;
+	form.addEventListener('click', function(e) {
+		var btn = e.target.closest('.cvt-status-btn');
+		if ( ! btn ) return;
+		e.preventDefault();
+		input.value = btn.dataset.status;
+		form.submit();
+	});
+})();
+</script>

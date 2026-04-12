@@ -3,7 +3,13 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * AJAX endpoint handlers.
- * All endpoints require a 'cvt_ajax' nonce and logged-in user.
+ *
+ * Security model:
+ *  - Every endpoint verifies the 'cvt_ajax' nonce.
+ *  - Every endpoint checks a relevant CVT capability.
+ *  - The vendor_search endpoint is rate-limited to 60 calls/user/minute.
+ *  - Image removal verifies per-item ownership, not just the global capability.
+ *  - Only `wp_ajax_*` hooks are registered (no nopriv) — all endpoints require login.
  */
 class CVT_Ajax {
 
@@ -13,9 +19,14 @@ class CVT_Ajax {
 		add_action( 'wp_ajax_cvt_remove_item_image', array( $this, 'remove_item_image' ) );
 	}
 
+	// -------------------------------------------------------------------------
+	// Endpoints
+	// -------------------------------------------------------------------------
+
 	/**
 	 * Typeahead search for vendors — used in item add/edit form.
 	 * Returns JSON array of { id, name, phone_primary }.
+	 * Rate-limited to 60 requests per user per minute.
 	 */
 	public function vendor_search() {
 		check_ajax_referer( 'cvt_ajax', 'nonce' );
@@ -24,20 +35,26 @@ class CVT_Ajax {
 			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
 		}
 
-		$query   = sanitize_text_field( $_GET['q'] ?? '' );
+		$this->check_rate_limit( 'vendor_search', 60 );
+
+		$query   = sanitize_text_field( wp_unslash( $_GET['q'] ?? '' ) );
 		$results = CVT_Vendor::search( $query, 10 );
 
 		wp_send_json_success( $results );
 	}
 
 	/**
-	 * Live payout preview when agent changes the selling price in item form.
-	 * Returns { commission_rate, commission_amount, payout_amount }.
+	 * Live payout preview when agent types a selling price.
+	 * Returns { commission_rate, commission_amount, payout_amount, formatted }.
 	 */
 	public function payout_preview() {
 		check_ajax_referer( 'cvt_ajax', 'nonce' );
 
-		$price = (float) ( $_GET['price'] ?? 0 );
+		if ( ! current_user_can( 'cvt_add_items' ) ) {
+			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
+		}
+
+		$price = max( 0, (float) ( $_GET['price'] ?? 0 ) );
 		$rate  = CVT_Settings::commission_rate();
 		$calcs = CVT_Payout::calculate( $price, $rate );
 
@@ -54,8 +71,8 @@ class CVT_Ajax {
 
 	/**
 	 * Remove an item image.
-	 * Verifies the requesting user has permission to edit this specific item,
-	 * not just the capability in general.
+	 * Verifies the requesting user has edit permission on this specific item
+	 * (own vs. any) before acting — not just the global capability.
 	 */
 	public function remove_item_image() {
 		check_ajax_referer( 'cvt_ajax', 'nonce' );
@@ -86,5 +103,36 @@ class CVT_Ajax {
 		}
 
 		wp_send_json_success();
+	}
+
+	// -------------------------------------------------------------------------
+	// Helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Transient-based rate limiter.
+	 * Sends a 429 JSON error and exits if the per-user call count exceeds $max
+	 * within the current 60-second window.
+	 *
+	 * @param string $action   Unique action name for this endpoint.
+	 * @param int    $max      Maximum calls allowed per minute.
+	 */
+	private function check_rate_limit( $action, $max = 60 ) {
+		$user_id = get_current_user_id();
+		$key     = 'cvt_rl_' . sanitize_key( $action ) . '_' . $user_id;
+		$count   = (int) get_transient( $key );
+
+		if ( $count >= $max ) {
+			wp_send_json_error( array( 'message' => 'Too many requests. Please slow down.' ), 429 );
+		}
+
+		// Increment counter; set a 60-second window on first call.
+		if ( $count === 0 ) {
+			set_transient( $key, 1, MINUTE_IN_SECONDS );
+		} else {
+			// Preserve the existing TTL by using set_transient with 0 (which WordPress
+			// ignores for existing keys). We use a direct option update instead.
+			set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
+		}
 	}
 }

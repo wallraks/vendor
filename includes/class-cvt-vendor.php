@@ -195,15 +195,19 @@ class CVT_Vendor {
 
 	/**
 	 * Sanitize and validate vendor input fields.
+	 * Input is expected to have already been run through wp_unslash() at the
+	 * controller layer (admin/class-cvt-admin.php form handlers).
 	 */
 	private static function sanitize( array $data ) {
+		$max              = CVT_Settings::max_lengths();
 		$allowed_channels = array( 'phone', 'whatsapp', 'email', 'walkin' );
+
 		return array(
-			'name'            => sanitize_text_field( $data['name'] ?? '' ),
-			'phone_primary'   => sanitize_text_field( $data['phone_primary'] ?? '' ),
-			'phone_secondary' => sanitize_text_field( $data['phone_secondary'] ?? '' ),
-			'email'           => sanitize_email( $data['email'] ?? '' ),
-			'location'        => sanitize_text_field( $data['location'] ?? '' ),
+			'name'            => substr( sanitize_text_field( $data['name'] ?? '' ), 0, $max['name'] ),
+			'phone_primary'   => substr( sanitize_text_field( $data['phone_primary'] ?? '' ), 0, $max['phone'] ),
+			'phone_secondary' => substr( sanitize_text_field( $data['phone_secondary'] ?? '' ), 0, $max['phone'] ),
+			'email'           => substr( sanitize_email( $data['email'] ?? '' ), 0, $max['email'] ),
+			'location'        => substr( sanitize_text_field( $data['location'] ?? '' ), 0, $max['location'] ),
 			'intake_channel'  => in_array( $data['intake_channel'] ?? 'phone', $allowed_channels, true )
 				? $data['intake_channel']
 				: 'phone',

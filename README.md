@@ -432,6 +432,27 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 
 ## Changelog
 
+### 1.1.0 — Security Hardening, Visual Status Stepper & Listivo Category Integration
+
+**New features**
+- **Visual status stepper** on item detail pages: a full-width horizontal timeline showing Under Review → Posted → Inquiry Received → Sold → Closed. Each stage displays the date it was first entered (derived from the activity log). Completed stages show a green checkmark; the active stage is highlighted in blue; future stages are greyed out.
+- **Quick status action buttons** below the stepper: colour-coded buttons (green for Posted, orange for Inquiry, purple for Sold, grey for Closed, red for Withdrawn) wire directly to the status update form — no dropdown needed.
+- **Listivo CT taxonomy integration**: `CVT_Settings::categories()` now checks `taxonomy_exists()` and calls `get_terms()` to pull categories live from the Listivo `listivo_category` taxonomy (configurable). Falls back to the manual textarea list if the taxonomy is absent or empty.
+- **Settings page — Listivo Category Integration section**: taxonomy slug input, real-time connection status indicator (Connected / Empty / Not Found), and a collapsible category preview when connected.
+
+**Security improvements**
+- `wp_unslash()` applied to all `$_POST`/`$_GET` input at the controller boundary in `class-cvt-admin.php` and `class-cvt-ajax.php`, preventing double-slashed apostrophes in stored values.
+- AJAX image removal (`cvt_remove_item_image`) now performs per-item ownership check before applying capability gate.
+- Transient-based rate limiter (60 req/user/min) added to the vendor search AJAX endpoint.
+- `selling_price` and `market_value` in item sanitization clamped to non-negative values with `max(0, ...)`.
+- Date fields validated against `YYYY-MM-DD` format before storage.
+- Field lengths capped in all model `sanitize()` methods via `CVT_Settings::max_lengths()`.
+
+**Bug fixes (carried over from 1.0.1)**
+- XSS fix in `CVT_Activity_Log::describe()` — display name and status labels now escaped with `esc_html()`.
+- Dashboard activity feed payout links corrected (now points to Payouts list, not wrong item ID).
+- Minimum WordPress version corrected to 6.2 (`%i` placeholder requirement).
+
 ### 1.0.1 — Bug Fixes
 - **Security:** Escaped `$actor` (user display name) with `esc_html()` in `CVT_Activity_Log::describe()` to prevent XSS from maliciously crafted display names.
 - **Bug fix:** Dashboard activity feed now correctly links payout log entries to the Payouts list instead of incorrectly using the payout ID as an item ID.

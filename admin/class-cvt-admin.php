@@ -166,8 +166,11 @@ class CVT_Admin {
 
 	public function handle_save_vendor() {
 		check_admin_referer( 'cvt_save_vendor' );
-		$id  = absint( $_POST['vendor_id'] ?? 0 );
-		$data = $_POST;
+		// wp_unslash() removes WordPress's magic-quote slashing before sanitization
+		// so values like "O'Brien" are stored correctly rather than as "O\'Brien".
+		$post = wp_unslash( $_POST );
+		$id   = absint( $post['vendor_id'] ?? 0 );
+		$data = $post;
 
 		if ( $id ) {
 			$result = CVT_Vendor::update( $id, $data );
@@ -189,8 +192,9 @@ class CVT_Admin {
 
 	public function handle_save_item() {
 		check_admin_referer( 'cvt_save_item' );
-		$id   = absint( $_POST['item_id'] ?? 0 );
-		$data = $_POST;
+		$post = wp_unslash( $_POST );
+		$id   = absint( $post['item_id'] ?? 0 );
+		$data = $post;
 
 		if ( $id ) {
 			$result = CVT_Item::update( $id, $data );
@@ -222,9 +226,10 @@ class CVT_Admin {
 
 	public function handle_update_status() {
 		check_admin_referer( 'cvt_update_status' );
-		$item_id    = absint( $_POST['item_id'] ?? 0 );
-		$new_status = sanitize_key( $_POST['new_status'] ?? '' );
-		$note       = sanitize_textarea_field( $_POST['note'] ?? '' );
+		$post       = wp_unslash( $_POST );
+		$item_id    = absint( $post['item_id'] ?? 0 );
+		$new_status = sanitize_key( $post['new_status'] ?? '' );
+		$note       = sanitize_textarea_field( $post['note'] ?? '' );
 
 		$result = CVT_Item::update_status( $item_id, $new_status, $note );
 		if ( is_wp_error( $result ) ) {
@@ -238,9 +243,10 @@ class CVT_Admin {
 
 	public function handle_save_payout() {
 		check_admin_referer( 'cvt_save_payout' );
-		$payout_id = absint( $_POST['payout_id'] ?? 0 );
-		$reference = sanitize_text_field( $_POST['reference_number'] ?? '' );
-		$notes     = sanitize_textarea_field( $_POST['notes'] ?? '' );
+		$post      = wp_unslash( $_POST );
+		$payout_id = absint( $post['payout_id'] ?? 0 );
+		$reference = sanitize_text_field( $post['reference_number'] ?? '' );
+		$notes     = sanitize_textarea_field( $post['notes'] ?? '' );
 
 		$result = CVT_Payout::mark_paid( $payout_id, $reference, $notes );
 		if ( is_wp_error( $result ) ) {
@@ -257,7 +263,7 @@ class CVT_Admin {
 
 	public function handle_save_settings() {
 		check_admin_referer( 'cvt_save_settings' );
-		$result = CVT_Settings::save( $_POST );
+		$result = CVT_Settings::save( wp_unslash( $_POST ) );
 		if ( is_wp_error( $result ) ) {
 			$this->redirect_with_error( 'cvt-settings', $result->get_error_message() );
 			return;

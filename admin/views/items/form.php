@@ -43,85 +43,73 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 		<input type="hidden" name="action"  value="cvt_save_item">
 		<input type="hidden" name="item_id" value="<?php echo esc_attr( $item_id ); ?>">
 		<input type="hidden" name="cvt_image_ids" id="cvt_image_ids" value="">
+		<?php if ( ! $is_edit ) : ?>
+		<!-- Populated by JS when a listing is selected -->
+		<input type="hidden" name="description"         id="cvt-field-description">
+		<input type="hidden" name="listivo_listing_url" id="cvt-field-listing-url">
+		<?php endif; ?>
 
 		<div class="cvt-form-grid">
 			<div class="cvt-form-main">
 
 			<?php if ( ! $is_edit ) : ?>
 				<!-- ============================================================
-				     ADD MODE — Step 1: Find the Listivo listing
+				     ADD MODE
 				     ============================================================ -->
-				<div class="cvt-card cvt-listing-search-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Find Listivo Listing', 'corido-vendor-tracker' ); ?></h2>
-					<p class="description">
-						<?php esc_html_e( 'Search for the item already posted on the website. Selecting it will pull through the title, price, and category automatically.', 'corido-vendor-tracker' ); ?>
-					</p>
 
-					<!-- Search input (shown until listing is selected) -->
-					<div id="cvt-listing-search-state" class="cvt-field">
+				<!-- Step 1: Search for the Listivo listing -->
+				<div class="cvt-card cvt-listing-search-card">
+					<h2 class="cvt-card-title"><?php esc_html_e( 'Search Listing', 'corido-vendor-tracker' ); ?></h2>
+
+					<!-- Search input row -->
+					<div class="cvt-field" id="cvt-listing-search-state">
 						<div id="cvt-listing-search-wrap" style="position:relative;">
 							<input type="text" id="cvt-listing-search" class="widefat"
-								placeholder="<?php esc_attr_e( 'Type a title to search published listings…', 'corido-vendor-tracker' ); ?>"
+								placeholder="<?php esc_attr_e( 'Start typing the item name…', 'corido-vendor-tracker' ); ?>"
 								autocomplete="off">
 							<div id="cvt-listing-suggestions" class="cvt-suggestions" hidden></div>
 						</div>
+						<p class="description" style="margin-top:6px;">
+							<?php esc_html_e( 'Search published listings from the website. Fields below fill in automatically when you select one.', 'corido-vendor-tracker' ); ?>
+						</p>
 					</div>
 
-					<!-- Selected listing preview (hidden until a listing is chosen) -->
-					<div id="cvt-listing-selected" hidden>
-						<div class="cvt-listing-preview">
-							<img id="cvt-listing-thumb" src="" alt="" class="cvt-listing-thumb-img" hidden>
-							<div class="cvt-listing-preview-body">
-								<div class="cvt-listing-preview-title" id="cvt-listing-preview-title"></div>
-								<div class="cvt-listing-preview-meta">
-									<span id="cvt-listing-preview-price" class="cvt-price"></span>
-									<span id="cvt-listing-preview-category" class="cvt-listing-preview-cat"></span>
-								</div>
-								<a id="cvt-listing-preview-url" href="#" target="_blank" rel="noopener" class="cvt-muted">
-									<?php esc_html_e( 'View listing ↗', 'corido-vendor-tracker' ); ?>
-								</a>
-							</div>
-							<button type="button" id="cvt-listing-change" class="button">
-								<?php esc_html_e( 'Change', 'corido-vendor-tracker' ); ?>
-							</button>
+					<!-- Selected listing chip (shown after selection) -->
+					<div id="cvt-listing-selected" class="cvt-listing-chip" hidden>
+						<img id="cvt-listing-thumb" src="" alt="" class="cvt-listing-thumb-img" hidden>
+						<div class="cvt-listing-chip-body">
+							<span class="cvt-listing-chip-title" id="cvt-listing-chip-title"></span>
+							<a id="cvt-listing-chip-url" href="#" target="_blank" rel="noopener" class="cvt-muted">
+								<?php esc_html_e( 'View on website ↗', 'corido-vendor-tracker' ); ?>
+							</a>
 						</div>
-
-						<!-- Payout preview (populated by JS after listing selected) -->
-						<div id="cvt-listing-payout-preview" class="cvt-payout-preview" style="margin-top:16px;">
-							<div class="cvt-payout-preview-row">
-								<span>
-									<?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?>
-									(<span id="preview-rate-add"><?php echo esc_html( $comm_rate ); ?></span>%)
-								</span>
-								<strong id="preview-commission-add">—</strong>
-							</div>
-							<div class="cvt-payout-preview-row cvt-payout-preview-row--total">
-								<span><?php esc_html_e( 'Vendor Payout', 'corido-vendor-tracker' ); ?></span>
-								<strong id="preview-payout-add">—</strong>
-							</div>
-						</div>
+						<button type="button" id="cvt-listing-change" class="button button-small">
+							<?php esc_html_e( 'Change', 'corido-vendor-tracker' ); ?>
+						</button>
 					</div>
-
-					<!--
-					    Hidden inputs populated by JS. title is required so the form
-					    cannot be submitted without selecting a listing first.
-					-->
-					<input type="hidden" name="title"               id="cvt-field-title"         required>
-					<input type="hidden" name="description"         id="cvt-field-description">
-					<input type="hidden" name="selling_price"       id="cvt-field-selling-price"  value="0">
-					<input type="hidden" name="category"            id="cvt-field-category">
-					<input type="hidden" name="listivo_listing_url" id="cvt-field-listing-url">
 				</div>
 
-				<!-- ADD MODE — Management details -->
+				<!-- Step 2: Item details — populated from listing, editable -->
 				<div class="cvt-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Management Details', 'corido-vendor-tracker' ); ?></h2>
+					<h2 class="cvt-card-title"><?php esc_html_e( 'Item Details', 'corido-vendor-tracker' ); ?></h2>
+
+					<div class="cvt-field">
+						<label for="title"><?php esc_html_e( 'Item Title', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
+						<input type="text" id="title" name="title" class="widefat" required
+							placeholder="<?php esc_attr_e( 'Auto-filled when you select a listing above', 'corido-vendor-tracker' ); ?>">
+					</div>
 
 					<div class="cvt-field-row">
 						<div class="cvt-field">
-							<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
-								placeholder="<?php esc_attr_e( 'Vendor\'s asking price estimate', 'corido-vendor-tracker' ); ?>">
+							<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
+							<select id="category" name="category" class="widefat">
+								<option value=""><?php esc_html_e( '— Auto-filled from listing —', 'corido-vendor-tracker' ); ?></option>
+								<?php foreach ( $categories as $cat ) : ?>
+								<option value="<?php echo esc_attr( $cat ); ?>">
+									<?php echo esc_html( $cat ); ?>
+								</option>
+								<?php endforeach; ?>
+							</select>
 						</div>
 						<div class="cvt-field">
 							<label for="deal_type"><?php esc_html_e( 'Deal Type', 'corido-vendor-tracker' ); ?></label>
@@ -134,6 +122,34 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 
 					<div class="cvt-field-row">
 						<div class="cvt-field">
+							<label for="selling_price"><?php esc_html_e( 'Selling Price (KES)', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
+							<input type="number" id="selling_price" name="selling_price" class="widefat" required min="0" step="0.01"
+								placeholder="<?php esc_attr_e( 'Auto-filled from listing price', 'corido-vendor-tracker' ); ?>">
+						</div>
+						<div class="cvt-field">
+							<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
+							<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
+								placeholder="<?php esc_attr_e( 'Vendor\'s estimate', 'corido-vendor-tracker' ); ?>">
+						</div>
+					</div>
+
+					<!-- Live payout preview -->
+					<div class="cvt-payout-preview" id="cvt-payout-preview">
+						<div class="cvt-payout-preview-row">
+							<span>
+								<?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?>
+								(<span id="preview-rate"><?php echo esc_html( $comm_rate ); ?></span>%)
+							</span>
+							<strong id="preview-commission"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
+						</div>
+						<div class="cvt-payout-preview-row cvt-payout-preview-row--total">
+							<span><?php esc_html_e( 'Vendor Payout', 'corido-vendor-tracker' ); ?></span>
+							<strong id="preview-payout"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
+						</div>
+					</div>
+
+					<div class="cvt-field-row" style="margin-top:16px;">
+						<div class="cvt-field">
 							<label for="date_received"><?php esc_html_e( 'Date Received', 'corido-vendor-tracker' ); ?></label>
 							<input type="date" id="date_received" name="date_received" class="widefat"
 								value="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
@@ -141,7 +157,7 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 						<div class="cvt-field">
 							<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
 							<textarea id="notes" name="notes" rows="3" class="widefat"
-								placeholder="<?php esc_attr_e( 'Condition, defects, agent observations…', 'corido-vendor-tracker' ); ?>"></textarea>
+								placeholder="<?php esc_attr_e( 'Condition, agent observations…', 'corido-vendor-tracker' ); ?>"></textarea>
 						</div>
 					</div>
 				</div>
@@ -155,7 +171,7 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 
 					<?php if ( $item->listivo_listing_url ) : ?>
 					<div class="cvt-field cvt-listing-link-field">
-						<label><?php esc_html_e( 'Listivo Listing', 'corido-vendor-tracker' ); ?></label>
+						<label><?php esc_html_e( 'Website Listing', 'corido-vendor-tracker' ); ?></label>
 						<a href="<?php echo esc_url( $item->listivo_listing_url ); ?>" target="_blank" rel="noopener" class="cvt-listing-ext-link">
 							<?php echo esc_html( $item->title ); ?> ↗
 						</a>
@@ -231,7 +247,6 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 						</div>
 					</div>
 
-					<!-- Live payout preview (edit mode — interactive) -->
 					<div class="cvt-payout-preview" id="cvt-payout-preview">
 						<div class="cvt-payout-preview-row">
 							<span><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?>

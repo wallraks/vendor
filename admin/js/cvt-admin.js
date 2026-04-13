@@ -1,13 +1,12 @@
 /**
  * Corido Vendor Tracker — Admin JavaScript
  *
- * Handles:
- *  1. Listivo listing search (add mode) — search, select, auto-fill hidden inputs
- *  2. Vendor typeahead (add/edit mode)
- *  3. Live payout preview on selling price change (edit mode)
- *  4. WP Media uploader for item images
- *  5. Image removal via AJAX
- *  6. Confirm-before-delete for destructive links
+ * 1. Listivo listing search (add mode) — real-time, auto-fills visible form fields
+ * 2. Vendor typeahead (add/edit)
+ * 3. Live payout preview tied to the selling_price input
+ * 4. WP Media uploader for item images
+ * 5. Image removal via AJAX
+ * 6. Confirm-before-delete
  */
 /* global CVT, wp */
 (function ($) {
@@ -24,17 +23,13 @@
 			.replace(/"/g, '&quot;');
 	}
 
-	function formatKes(num) {
-		var n = parseFloat(num) || 0;
-		return 'KES ' + n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-	}
-
 	// -------------------------------------------------------------------------
-	// 1. Listivo Listing Search (add mode only — #cvt-listing-search)
+	// 1. Listivo Listing Search — add mode only
+	//    Fires from the first character; fills title, category, selling_price.
 	// -------------------------------------------------------------------------
-	var $listingSearch   = $('#cvt-listing-search');
-	var $listingSugg     = $('#cvt-listing-suggestions');
-	var listingTimer     = null;
+	var $listingSearch = $('#cvt-listing-search');
+	var $listingSugg   = $('#cvt-listing-suggestions');
+	var listingTimer   = null;
 
 	if ($listingSearch.length) {
 
@@ -42,11 +37,12 @@
 			clearTimeout(listingTimer);
 			var q = $(this).val().trim();
 
-			if (q.length < 2) {
+			if (q.length === 0) {
 				$listingSugg.hide().empty();
 				return;
 			}
 
+			// Show a subtle loading state after a short pause.
 			listingTimer = setTimeout(function () {
 				$.ajax({
 					url:    CVT.ajax_url,
@@ -54,146 +50,149 @@
 					data:   { action: 'cvt_listing_search', nonce: CVT.nonce, q: q },
 					success: function (res) {
 						$listingSugg.empty();
+
 						if (!res.success || !res.data.length) {
-							$listingSugg.append(
-								'<div class="cvt-suggestion-item cvt-muted">No published listings found.</div>'
-							);
-						} else {
-							$.each(res.data, function (i, listing) {
-								var thumb = listing.thumbnail
-									? '<img src="' + escHtml(listing.thumbnail) + '" class="cvt-suggestion-thumb" alt="">'
-									: '<span class="cvt-suggestion-thumb cvt-suggestion-thumb--placeholder"></span>';
-								var price = listing.price
-									? ' <span class="cvt-suggestion-price">' + escHtml(formatKes(listing.price)) + '</span>'
-									: '';
-								var cat = listing.category
-									? ' <span class="cvt-muted">· ' + escHtml(listing.category) + '</span>'
-									: '';
-
-								var $row = $(
-									'<div class="cvt-suggestion-item cvt-listing-suggestion">' +
-									thumb +
-									'<div class="cvt-suggestion-body">' +
-									'<strong>' + escHtml(listing.title) + '</strong>' +
-									price + cat +
-									'</div></div>'
-								);
-
-								$row.on('click', function () {
-									selectListing(listing);
-								});
-
-								$listingSugg.append($row);
-							});
+							$listingSugg.html(
+								'<div class="cvt-suggestion-item cvt-suggestion-empty">No published listings found for "' + escHtml(q) + '"</div>'
+							).removeAttr('hidden').show();
+							return;
 						}
+
+						$.each(res.data, function (i, listing) {
+							var thumb = listing.thumbnail
+								? '<img src="' + escHtml(listing.thumbnail) + '" class="cvt-suggestion-thumb" alt="">'
+								: '<span class="cvt-suggestion-thumb cvt-suggestion-thumb--placeholder"></span>';
+
+							var price = listing.price
+								? '<span class="cvt-suggestion-price">KES ' + escHtml(Number(listing.price).toLocaleString()) + '</span>'
+								: '';
+
+							var cat = listing.category
+								? '<span class="cvt-suggestion-cat">· ' + escHtml(listing.category) + '</span>'
+								: '';
+
+							var $row = $(
+								'<div class="cvt-suggestion-item cvt-listing-suggestion" role="option" tabindex="-1">' +
+								thumb +
+								'<div class="cvt-suggestion-body">' +
+								'<strong class="cvt-suggestion-title">' + escHtml(listing.title) + '</strong>' +
+								'<span class="cvt-suggestion-meta">' + price + cat + '</span>' +
+								'</div></div>'
+							);
+
+							$row.on('click', function () { selectListing(listing); });
+							$listingSugg.append($row);
+						});
+
 						$listingSugg.removeAttr('hidden').show();
 					}
 				});
-			}, 280);
+			}, 200);   // 200 ms debounce — fast enough to feel real-time
 		});
 
-		// Keyboard navigation in results.
+		// Keyboard navigation.
 		$listingSearch.on('keydown', function (e) {
 			var $items  = $listingSugg.find('.cvt-listing-suggestion');
 			var $active = $items.filter('.is-active');
+
 			if (e.key === 'ArrowDown') {
 				e.preventDefault();
-				($active.length ? $active.removeClass('is-active').next() : $items.first()).addClass('is-active');
+				var $next = $active.length ? $active.removeClass('is-active').next('.cvt-listing-suggestion') : $items.first();
+				$next.addClass('is-active').focus();
 			} else if (e.key === 'ArrowUp') {
 				e.preventDefault();
-				$active.removeClass('is-active').prev().addClass('is-active');
-			} else if (e.key === 'Enter' && $active.length) {
-				e.preventDefault();
-				$active.trigger('click');
+				$active.removeClass('is-active').prev('.cvt-listing-suggestion').addClass('is-active');
+			} else if (e.key === 'Enter') {
+				if ($active.length) { e.preventDefault(); $active.trigger('click'); }
 			} else if (e.key === 'Escape') {
 				$listingSugg.hide().empty();
+				$listingSearch.focus();
 			}
 		});
 
-		// Close dropdown on outside click.
+		// Click outside closes the dropdown.
 		$(document).on('click', function (e) {
 			if (!$(e.target).closest('#cvt-listing-search-wrap').length) {
 				$listingSugg.hide();
 			}
 		});
 
-		// "Change" button — clear selection and go back to search.
-		$('#cvt-listing-change').on('click', clearListing);
+		// "Change" button clears selection and reopens search.
+		$(document).on('click', '#cvt-listing-change', function () {
+			clearListing();
+			$listingSearch.focus();
+		});
 	}
 
 	function selectListing(listing) {
-		// Populate hidden form inputs.
-		$('#cvt-field-title').val(listing.title);
+		// --- Populate VISIBLE form fields ---
+
+		// Title
+		$('#title').val(listing.title);
+
+		// Selling price → triggers payout preview update below
+		if (listing.price) {
+			$('#selling_price').val(listing.price).trigger('input');
+		}
+
+		// Category: match by text (case-insensitive) against the <select> options
+		if (listing.category) {
+			var matched = false;
+			$('#category option').each(function () {
+				if ($(this).text().trim().toLowerCase() === listing.category.toLowerCase()) {
+					$('#category').val($(this).val());
+					matched = true;
+					return false; // break
+				}
+			});
+			// If not found in the list, append a temporary option so it isn't lost
+			if (!matched && listing.category) {
+				$('#category').append(
+					$('<option>', { value: listing.category, text: listing.category, selected: true })
+				);
+			}
+		}
+
+		// --- Populate HIDDEN fields ---
 		$('#cvt-field-description').val(listing.excerpt || '');
-		$('#cvt-field-selling-price').val(listing.price || '0');
-		$('#cvt-field-category').val(listing.category || '');
 		$('#cvt-field-listing-url').val(listing.url);
 
-		// Populate preview card.
+		// --- Update listing chip ---
 		var $thumb = $('#cvt-listing-thumb');
 		if (listing.thumbnail) {
 			$thumb.attr('src', listing.thumbnail).removeAttr('hidden').show();
 		} else {
 			$thumb.hide();
 		}
-		$('#cvt-listing-preview-title').text(listing.title);
-		$('#cvt-listing-preview-url').attr('href', listing.url);
+		$('#cvt-listing-chip-title').text(listing.title);
+		$('#cvt-listing-chip-url').attr('href', listing.url);
 
-		if (listing.price) {
-			$('#cvt-listing-preview-price').text(formatKes(listing.price));
-		}
-		if (listing.category) {
-			$('#cvt-listing-preview-category').text(listing.category);
-		}
-
-		// Show preview, hide search input.
+		// Switch UI: hide search input, show chip
 		$listingSugg.hide().empty();
 		$('#cvt-listing-search-state').hide();
 		$('#cvt-listing-selected').removeAttr('hidden').show();
-
-		// Fetch payout calculation for the listing price.
-		if (listing.price && parseFloat(listing.price) > 0) {
-			$.ajax({
-				url:    CVT.ajax_url,
-				method: 'GET',
-				data:   { action: 'cvt_payout_preview', nonce: CVT.nonce, price: listing.price },
-				success: function (res) {
-					if (res.success) {
-						$('#preview-commission-add').text(res.data.formatted.commission);
-						$('#preview-payout-add').text(res.data.formatted.payout);
-					}
-				}
-			});
-		}
 	}
 
 	function clearListing() {
-		$('#cvt-field-title').val('');
+		$('#title').val('');
+		$('#selling_price').val('').trigger('input');
+		$('#category').val('');
 		$('#cvt-field-description').val('');
-		$('#cvt-field-selling-price').val('0');
-		$('#cvt-field-category').val('');
 		$('#cvt-field-listing-url').val('');
 
-		$listingSearch.val('').focus();
-		$('#cvt-listing-preview-title').text('');
-		$('#cvt-listing-preview-price').text('');
-		$('#cvt-listing-preview-category').text('');
-		$('#cvt-listing-preview-url').attr('href', '#');
-		$('#preview-commission-add').text('—');
-		$('#preview-payout-add').text('—');
-
+		$listingSearch.val('');
 		$('#cvt-listing-selected').hide();
 		$('#cvt-listing-search-state').show();
 	}
 
 	// -------------------------------------------------------------------------
-	// 2. Vendor Typeahead (#cvt-vendor-search)
+	// 2. Vendor Typeahead
 	// -------------------------------------------------------------------------
 	var $vendorSearch  = $('#cvt-vendor-search');
 	var $vendorId      = $('#vendor_id');
 	var $vendorSugg    = $('#cvt-vendor-suggestions');
 	var vendorTimer    = null;
-	var vendorSelected = '';   // label of the chosen vendor, to detect re-typing
+	var vendorLabel    = $vendorSearch.val(); // preserve pre-selected label
 
 	if ($vendorSearch.length) {
 		$vendorSearch.wrap('<div id="cvt-vendor-search-wrap" style="position:relative;"></div>');
@@ -202,15 +201,9 @@
 			clearTimeout(vendorTimer);
 			var q = $(this).val().trim();
 
-			// If the agent types something different from the selected label, clear the ID.
-			if (q !== vendorSelected) {
-				$vendorId.val('');
-			}
+			if (q !== vendorLabel) { $vendorId.val(''); }
 
-			if (q.length < 2) {
-				$vendorSugg.hide().empty();
-				return;
-			}
+			if (q.length === 0) { $vendorSugg.hide().empty(); return; }
 
 			vendorTimer = setTimeout(function () {
 				$.ajax({
@@ -220,18 +213,18 @@
 					success: function (res) {
 						$vendorSugg.empty();
 						if (!res.success || !res.data.length) {
-							$vendorSugg.append('<div class="cvt-suggestion-item cvt-muted">No vendors found.</div>');
+							$vendorSugg.append('<div class="cvt-suggestion-item cvt-suggestion-empty">No vendors found.</div>');
 						} else {
 							$.each(res.data, function (i, v) {
 								var $row = $(
-									'<div class="cvt-suggestion-item" data-id="' + v.id + '">' +
+									'<div class="cvt-suggestion-item">' +
 									'<strong>' + escHtml(v.name) + '</strong>' +
 									'<span class="cvt-suggestion-phone">' + escHtml(v.phone_primary) + '</span>' +
 									'</div>'
 								);
 								$row.on('click', function () {
-									vendorSelected = v.name + ' (' + v.phone_primary + ')';
-									$vendorSearch.val(vendorSelected);
+									vendorLabel = v.name + ' (' + v.phone_primary + ')';
+									$vendorSearch.val(vendorLabel);
 									$vendorId.val(v.id);
 									$vendorSugg.hide().empty();
 								});
@@ -241,7 +234,7 @@
 						$vendorSugg.removeAttr('hidden').show();
 					}
 				});
-			}, 280);
+			}, 200);
 		});
 
 		$vendorSearch.on('keydown', function (e) {
@@ -254,8 +247,7 @@
 				e.preventDefault();
 				$active.removeClass('is-active').prev().addClass('is-active');
 			} else if (e.key === 'Enter' && $active.length) {
-				e.preventDefault();
-				$active.trigger('click');
+				e.preventDefault(); $active.trigger('click');
 			} else if (e.key === 'Escape') {
 				$vendorSugg.hide();
 			}
@@ -269,7 +261,7 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// 3. Live Payout Preview (edit mode — #selling_price)
+	// 3. Live Payout Preview — tied to #selling_price (both modes)
 	// -------------------------------------------------------------------------
 	var $sellingPrice = $('#selling_price');
 
@@ -303,11 +295,7 @@
 
 	$('#cvt-add-image').on('click', function (e) {
 		e.preventDefault();
-
-		if (mediaFrame) {
-			mediaFrame.open();
-			return;
-		}
+		if (mediaFrame) { mediaFrame.open(); return; }
 
 		mediaFrame = wp.media({
 			title:    CVT.i18n.select_image,
@@ -317,16 +305,14 @@
 		});
 
 		mediaFrame.on('select', function () {
-			var attachments = mediaFrame.state().get('selection').toJSON();
-			$.each(attachments, function (i, att) {
+			$.each(mediaFrame.state().get('selection').toJSON(), function (i, att) {
 				var thumb = att.sizes && att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url;
-				var $thumb = $(
+				$('#cvt-image-grid').append(
 					'<div class="cvt-image-thumb" data-new-id="' + att.id + '">' +
 					'<img src="' + escHtml(thumb) + '" alt="">' +
 					'<button type="button" class="cvt-image-remove" title="Remove">×</button>' +
 					'</div>'
 				);
-				$('#cvt-image-grid').append($thumb);
 				newImageIds.push(att.id);
 				$('#cvt_image_ids').val(newImageIds.join(','));
 			});
@@ -336,7 +322,7 @@
 	});
 
 	// -------------------------------------------------------------------------
-	// 5. Image Removal (AJAX for saved images, DOM-only for new uploads)
+	// 5. Image Removal
 	// -------------------------------------------------------------------------
 	$(document).on('click', '.cvt-image-remove', function () {
 		var $thumb = $(this).closest('.cvt-image-thumb');
@@ -345,30 +331,20 @@
 		var itemId = $thumb.data('item-id');
 
 		if (newId) {
-			// Not yet saved — just remove from DOM and pending ID list.
 			newImageIds = newImageIds.filter(function (id) { return id !== newId; });
 			$('#cvt_image_ids').val(newImageIds.join(','));
 			$thumb.remove();
 			return;
 		}
-
 		if (!rowId || !itemId) { return; }
 
 		$.ajax({
 			url:    CVT.ajax_url,
 			method: 'POST',
-			data: {
-				action:       'cvt_remove_item_image',
-				nonce:        CVT.nonce,
-				item_id:      itemId,
-				image_row_id: rowId
-			},
+			data:   { action: 'cvt_remove_item_image', nonce: CVT.nonce, item_id: itemId, image_row_id: rowId },
 			success: function (res) {
-				if (res.success) {
-					$thumb.remove();
-				} else {
-					alert(res.data && res.data.message ? res.data.message : 'Could not remove image.');
-				}
+				if (res.success) { $thumb.remove(); }
+				else { alert(res.data && res.data.message ? res.data.message : 'Could not remove image.'); }
 			}
 		});
 	});
@@ -377,9 +353,7 @@
 	// 6. Confirm Destructive Actions
 	// -------------------------------------------------------------------------
 	$(document).on('click', '.cvt-delete-link', function (e) {
-		if (!confirm(CVT.i18n.confirm_delete)) {
-			e.preventDefault();
-		}
+		if (!confirm(CVT.i18n.confirm_delete)) { e.preventDefault(); }
 	});
 
 })(jQuery);

@@ -65,6 +65,43 @@ $source_info = CVT_Settings::categories_source_info();
 				<input type="hidden" name="action" value="cvt_save_settings">
 
 				<div class="cvt-field">
+					<label for="cvt_listivo_post_type">
+						<?php esc_html_e( 'Listivo Listing Post Type', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_listivo_post_type" name="cvt_listivo_post_type"
+						class="regular-text"
+						value="<?php echo esc_attr( CVT_Settings::get_listivo_post_type() ); ?>"
+						placeholder="listivo1_listing">
+					<p class="description">
+						<?php
+						$pt      = CVT_Settings::get_listivo_post_type();
+						$pt_obj  = $pt ? get_post_type_object( $pt ) : null;
+						$pt_count = $pt_obj ? wp_count_posts( $pt )->publish : 0;
+						if ( $pt_obj ) {
+							echo '<span class="cvt-taxonomy-status cvt-taxonomy-status--connected" style="display:inline-flex;margin-top:6px;">'
+								. '<span class="dashicons dashicons-yes-alt"></span>'
+								. esc_html( sprintf(
+									/* translators: 1: post type label, 2: count */
+									__( 'Connected — %1$s (%2$d published)', 'corido-vendor-tracker' ),
+									$pt_obj->label,
+									$pt_count
+								) )
+								. '</span>';
+						} else {
+							echo '<span class="cvt-taxonomy-status cvt-taxonomy-status--disconnected" style="display:inline-flex;margin-top:6px;">'
+								. '<span class="dashicons dashicons-dismiss"></span>'
+								. esc_html( sprintf(
+									/* translators: %s: post type slug */
+									__( 'Post type "%s" not found. Check the slug matches your Listivo installation.', 'corido-vendor-tracker' ),
+									$pt
+								) )
+								. '</span>';
+						}
+						?>
+					</p>
+				</div>
+
+				<div class="cvt-field">
 					<label for="cvt_listivo_taxonomy">
 						<?php esc_html_e( 'Listivo Category Taxonomy', 'corido-vendor-tracker' ); ?>
 					</label>

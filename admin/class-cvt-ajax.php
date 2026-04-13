@@ -7,13 +7,14 @@ defined( 'ABSPATH' ) || exit;
  * Security model:
  *  - Every endpoint verifies the 'cvt_ajax' nonce.
  *  - Every endpoint checks a relevant CVT capability.
- *  - The vendor_search endpoint is rate-limited to 60 calls/user/minute.
+ *  - Search endpoints are rate-limited to 60 calls/user/minute.
  *  - Image removal verifies per-item ownership, not just the global capability.
  *  - Only `wp_ajax_*` hooks are registered (no nopriv) — all endpoints require login.
  */
 class CVT_Ajax {
 
 	public function __construct() {
+		add_action( 'wp_ajax_cvt_listing_search',    array( $this, 'listing_search' ) );
 		add_action( 'wp_ajax_cvt_vendor_search',     array( $this, 'vendor_search' ) );
 		add_action( 'wp_ajax_cvt_payout_preview',    array( $this, 'payout_preview' ) );
 		add_action( 'wp_ajax_cvt_remove_item_image', array( $this, 'remove_item_image' ) );
@@ -22,6 +23,68 @@ class CVT_Ajax {
 	// -------------------------------------------------------------------------
 	// Endpoints
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Search published Listivo listings — primary input for the item add form.
+	 * Returns JSON array of { id, title, url, price, category, excerpt, thumbnail }.
+	 * Rate-limited to 60 requests per user per minute.
+	 */
+	public function listing_search() {
+		check_ajax_referer( 'cvt_ajax', 'nonce' );
+
+		if ( ! current_user_can( 'cvt_add_items' ) ) {
+			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
+		}
+
+		$this->check_rate_limit( 'listing_search', 60 );
+
+		$query     = sanitize_text_field( wp_unslash( $_GET['q'] ?? '' ) );
+		$post_type = CVT_Settings::get_listivo_post_type();
+		$taxonomy  = CVT_Settings::get_listivo_taxonomy();
+
+		$wp_query = new WP_Query( array(
+			'post_type'      => $post_type,
+			'post_status'    => 'publish',
+			's'              => $query,
+			'posts_per_page' => 10,
+			'no_found_rows'  => true,
+		) );
+
+		$listings = array();
+		foreach ( $wp_query->posts as $post ) {
+			// Try common Listivo price meta keys in priority order.
+			$price = '';
+			foreach ( array( '_listivo1_listing_price', 'listivo1_listing_price', '_price', 'price' ) as $key ) {
+				$val = get_post_meta( $post->ID, $key, true );
+				if ( '' !== $val && false !== $val ) {
+					$price = $val;
+					break;
+				}
+			}
+
+			// Primary category term from the configured Listivo taxonomy.
+			$category = '';
+			if ( $taxonomy ) {
+				$terms = get_the_terms( $post->ID, $taxonomy );
+				if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+					$category = $terms[0]->name;
+				}
+			}
+
+			$listings[] = array(
+				'id'        => $post->ID,
+				'title'     => $post->post_title,
+				'url'       => get_permalink( $post->ID ),
+				'price'     => $price,
+				'category'  => $category,
+				'excerpt'   => wp_trim_words( wp_strip_all_tags( $post->post_content ), 30, '…' ),
+				'thumbnail' => get_the_post_thumbnail_url( $post->ID, 'thumbnail' ) ?: '',
+			);
+		}
+
+		wp_reset_postdata();
+		wp_send_json_success( $listings );
+	}
 
 	/**
 	 * Typeahead search for vendors — used in item add/edit form.
@@ -84,7 +147,6 @@ class CVT_Ajax {
 			wp_send_json_error( array( 'message' => 'Invalid item.' ), 400 );
 		}
 
-		// Load the item to check ownership before acting.
 		$item = CVT_Item::get( $item_id );
 		if ( ! $item ) {
 			wp_send_json_error( array( 'message' => 'Item not found.' ), 404 );
@@ -126,12 +188,9 @@ class CVT_Ajax {
 			wp_send_json_error( array( 'message' => 'Too many requests. Please slow down.' ), 429 );
 		}
 
-		// Increment counter; set a 60-second window on first call.
 		if ( $count === 0 ) {
 			set_transient( $key, 1, MINUTE_IN_SECONDS );
 		} else {
-			// Preserve the existing TTL by using set_transient with 0 (which WordPress
-			// ignores for existing keys). We use a direct option update instead.
 			set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
 		}
 	}

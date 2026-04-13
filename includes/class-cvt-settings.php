@@ -34,6 +34,14 @@ class CVT_Settings {
 	}
 
 	/**
+	 * Returns the configured Listivo listing post type slug.
+	 * Defaults to 'listivo1_listing', the CPT registered by the Listivo theme.
+	 */
+	public static function get_listivo_post_type() {
+		return sanitize_key( get_option( 'cvt_listivo_post_type', 'listivo1_listing' ) );
+	}
+
+	/**
 	 * Returns item categories as an array of strings, pulled from:
 	 *   1. The configured Listivo taxonomy (if it exists and has terms), or
 	 *   2. The manual categories textarea as a fallback.
@@ -117,6 +125,10 @@ class CVT_Settings {
 
 		if ( isset( $data['cvt_listivo_taxonomy'] ) ) {
 			update_option( 'cvt_listivo_taxonomy', sanitize_key( $data['cvt_listivo_taxonomy'] ) );
+		}
+
+		if ( isset( $data['cvt_listivo_post_type'] ) ) {
+			update_option( 'cvt_listivo_post_type', sanitize_key( $data['cvt_listivo_post_type'] ) );
 		}
 
 		return true;

@@ -1053,6 +1053,20 @@
 }
 
 /* ============================================================
+   SLUG FINDER (settings page)
+   ============================================================ */
+.cvt-slug-finder-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+	.cvt-slug-finder-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
    LISTING SEARCH CARD (item add form)
    ============================================================ */
 

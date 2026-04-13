@@ -174,6 +174,88 @@ $source_info = CVT_Settings::categories_source_info();
 			</form>
 		</div>
 
+		<!-- Listivo Slug Finder -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Listivo Slug Finder', 'corido-vendor-tracker' ); ?></h2>
+			<p class="description" style="margin-bottom:14px;">
+				<?php esc_html_e( 'If the post type or taxonomy slugs above show "not found", use these tables to find the correct values registered by your Listivo theme. Look for entries that mention "listing", "listivo", or "CT" and copy their slugs into the fields above.', 'corido-vendor-tracker' ); ?>
+			</p>
+
+			<?php
+			// Post types — public or explicitly shown in UI, sorted by slug.
+			$all_post_types = get_post_types( array(), 'objects' );
+			ksort( $all_post_types );
+			$skip_post_types = array( 'attachment', 'nav_menu_item', 'wp_block', 'wp_template',
+				'wp_template_part', 'wp_navigation', 'wp_font_family', 'wp_font_face',
+				'wp_global_styles', 'wp_pattern_directory', 'revision', 'custom_css',
+				'customize_changeset', 'oembed_cache', 'user_request', 'scheduled-action' );
+
+			$all_taxonomies = get_taxonomies( array(), 'objects' );
+			ksort( $all_taxonomies );
+			$skip_taxonomies = array( 'nav_menu', 'link_category', 'post_format', 'wp_theme',
+				'wp_template_part_area', 'wp_pattern_category' );
+			?>
+
+			<div class="cvt-slug-finder-grid">
+				<!-- Post Types -->
+				<div>
+					<h3 style="margin:0 0 8px;font-size:13px;font-weight:600;"><?php esc_html_e( 'Registered Post Types', 'corido-vendor-tracker' ); ?></h3>
+					<table class="cvt-table widefat striped" style="font-size:12px;">
+						<thead><tr>
+							<th><?php esc_html_e( 'Slug', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Label', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Published', 'corido-vendor-tracker' ); ?></th>
+						</tr></thead>
+						<tbody>
+						<?php foreach ( $all_post_types as $slug => $pt ) :
+							if ( in_array( $slug, $skip_post_types, true ) ) continue;
+							$count   = wp_count_posts( $slug )->publish;
+							$is_used = ( $slug === CVT_Settings::get_listivo_post_type() );
+						?>
+						<tr <?php echo $is_used ? 'style="background:#e8f5e9;"' : ''; ?>>
+							<td>
+								<code><?php echo esc_html( $slug ); ?></code>
+								<?php if ( $is_used ) echo ' <span style="color:#2e7d32;font-weight:600;">← current</span>'; ?>
+							</td>
+							<td><?php echo esc_html( $pt->label ); ?></td>
+							<td><?php echo esc_html( number_format( $count ) ); ?></td>
+						</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+
+				<!-- Taxonomies -->
+				<div>
+					<h3 style="margin:0 0 8px;font-size:13px;font-weight:600;"><?php esc_html_e( 'Registered Taxonomies', 'corido-vendor-tracker' ); ?></h3>
+					<table class="cvt-table widefat striped" style="font-size:12px;">
+						<thead><tr>
+							<th><?php esc_html_e( 'Slug', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Label', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Terms', 'corido-vendor-tracker' ); ?></th>
+						</tr></thead>
+						<tbody>
+						<?php foreach ( $all_taxonomies as $slug => $tax ) :
+							if ( in_array( $slug, $skip_taxonomies, true ) ) continue;
+							$count   = wp_count_terms( array( 'taxonomy' => $slug, 'hide_empty' => false ) );
+							$count   = is_wp_error( $count ) ? 0 : (int) $count;
+							$is_used = ( $slug === CVT_Settings::get_listivo_taxonomy() );
+						?>
+						<tr <?php echo $is_used ? 'style="background:#e8f5e9;"' : ''; ?>>
+							<td>
+								<code><?php echo esc_html( $slug ); ?></code>
+								<?php if ( $is_used ) echo ' <span style="color:#2e7d32;font-weight:600;">← current</span>'; ?>
+							</td>
+							<td><?php echo esc_html( $tax->label ); ?></td>
+							<td><?php echo esc_html( number_format( $count ) ); ?></td>
+						</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
 		<!-- Agent accounts overview -->
 		<div class="cvt-card">
 			<h2 class="cvt-card-title"><?php esc_html_e( 'Agent Accounts', 'corido-vendor-tracker' ); ?></h2>

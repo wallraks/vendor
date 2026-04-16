@@ -41,6 +41,24 @@ class CVT_Settings {
 		return sanitize_key( get_option( 'cvt_listivo_post_type', 'listivo1_listing' ) );
 	}
 
+	// -------------------------------------------------------------------------
+	// Agent Role Configuration
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Returns the role slugs whose users appear in "Assigned Agent" dropdowns.
+	 * Falls back to the four built-in CVT roles + administrator if nothing is saved.
+	 *
+	 * @return string[]
+	 */
+	public static function get_assignable_roles() {
+		$saved = get_option( 'cvt_assignable_roles' );
+		if ( ! is_array( $saved ) || empty( $saved ) ) {
+			return array( 'administrator', 'cvt_admin', 'cvt_senior_agent', 'cvt_junior_agent' );
+		}
+		return array_values( array_filter( array_map( 'sanitize_key', $saved ) ) );
+	}
+
 	/**
 	 * Returns item categories as an array of strings, pulled from:
 	 *   1. The configured Listivo taxonomy (if it exists and has terms), or
@@ -129,6 +147,20 @@ class CVT_Settings {
 
 		if ( isset( $data['cvt_listivo_post_type'] ) ) {
 			update_option( 'cvt_listivo_post_type', sanitize_key( $data['cvt_listivo_post_type'] ) );
+		}
+
+		// Roles form submits a sentinel field so we can detect "all unchecked".
+		if ( isset( $data['cvt_roles_submitted'] ) ) {
+			$roles = array_values( array_filter(
+				array_map( 'sanitize_key', (array) ( $data['cvt_assignable_roles'] ?? array() ) )
+			) );
+			if ( empty( $roles ) ) {
+				return new WP_Error(
+					'no_roles',
+					__( 'Please select at least one role for agent assignment.', 'corido-vendor-tracker' )
+				);
+			}
+			update_option( 'cvt_assignable_roles', $roles );
 		}
 
 		return true;

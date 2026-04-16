@@ -256,6 +256,123 @@ $source_info = CVT_Settings::categories_source_info();
 			</div>
 		</div>
 
+		<!-- Agent Role Configuration -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Agent Role Configuration', 'corido-vendor-tracker' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Choose which WordPress roles appear in the "Assigned Agent" dropdown when adding or editing vendors. At least one role must be selected.', 'corido-vendor-tracker' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
+				<input type="hidden" name="action" value="cvt_save_settings">
+				<input type="hidden" name="cvt_roles_submitted" value="1">
+
+				<?php
+				$all_roles      = wp_roles()->roles;
+				$selected_roles = CVT_Settings::get_assignable_roles();
+				ksort( $all_roles );
+				?>
+				<div class="cvt-field" style="margin-top:12px;">
+					<fieldset>
+						<legend class="screen-reader-text"><?php esc_html_e( 'Assignable roles', 'corido-vendor-tracker' ); ?></legend>
+						<?php foreach ( $all_roles as $role_slug => $role_data ) : ?>
+						<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+							<input type="checkbox"
+								name="cvt_assignable_roles[]"
+								value="<?php echo esc_attr( $role_slug ); ?>"
+								<?php checked( in_array( $role_slug, $selected_roles, true ) ); ?>>
+							<strong><?php echo esc_html( translate_user_role( $role_data['name'] ) ); ?></strong>
+							<code style="font-size:11px;color:#666;"><?php echo esc_html( $role_slug ); ?></code>
+						</label>
+						<?php endforeach; ?>
+					</fieldset>
+				</div>
+
+				<button type="submit" class="button button-primary">
+					<?php esc_html_e( 'Save Role Configuration', 'corido-vendor-tracker' ); ?>
+				</button>
+			</form>
+		</div>
+
+		<!-- Vendor Reassignment Tool -->
+		<?php
+		// Count vendors currently assigned to out-of-role agents.
+		$reassign_valid_ids = array_map( 'intval', (array) get_users( array(
+			'role__in' => CVT_Settings::get_assignable_roles(),
+			'fields'   => 'ID',
+		) ) );
+		$reassign_valid_ids = array_filter( $reassign_valid_ids );
+
+		global $wpdb;
+		if ( empty( $reassign_valid_ids ) ) {
+			$orphan_count = (int) $wpdb->get_var(
+				'SELECT COUNT(*) FROM ' . CVT_DB::vendors() . ' WHERE assigned_agent_id IS NOT NULL AND assigned_agent_id != 0'
+			);
+		} else {
+			$in_list      = implode( ',', $reassign_valid_ids );
+			$orphan_count = (int) $wpdb->get_var(
+				"SELECT COUNT(*) FROM " . CVT_DB::vendors() . " WHERE assigned_agent_id IS NOT NULL AND assigned_agent_id != 0 AND assigned_agent_id NOT IN ($in_list)"
+			);
+		}
+		?>
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Vendor Reassignment Tool', 'corido-vendor-tracker' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'When an agent\'s role is removed from the configuration above, their existing vendor assignments remain unchanged. Use this tool to manually reassign those vendors in bulk.', 'corido-vendor-tracker' ); ?>
+			</p>
+
+			<?php if ( $orphan_count > 0 ) : ?>
+			<div class="notice notice-warning inline" style="margin:12px 0;">
+				<p>
+					<?php echo esc_html( sprintf(
+						_n(
+							'%d vendor is assigned to an agent whose role is no longer in the allowed set.',
+							'%d vendors are assigned to agents whose roles are no longer in the allowed set.',
+							$orphan_count,
+							'corido-vendor-tracker'
+						),
+						$orphan_count
+					) ); ?>
+				</p>
+			</div>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'cvt_bulk_reassign' ); ?>
+				<input type="hidden" name="action" value="cvt_bulk_reassign">
+
+				<div class="cvt-field">
+					<label for="reassign_to">
+						<?php esc_html_e( 'Reassign all affected vendors to:', 'corido-vendor-tracker' ); ?>
+					</label>
+					<select id="reassign_to" name="reassign_to" class="regular-text">
+						<option value="0"><?php esc_html_e( '— Unassign (leave blank) —', 'corido-vendor-tracker' ); ?></option>
+						<?php foreach ( $agents as $agent ) : ?>
+						<option value="<?php echo esc_attr( $agent->ID ); ?>">
+							<?php echo esc_html( $agent->display_name . ' (' . $agent->user_email . ')' ); ?>
+						</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<p class="description" style="color:#b32d2e;">
+					<?php esc_html_e( 'Warning: this action cannot be undone. All out-of-role vendor assignments will be updated immediately.', 'corido-vendor-tracker' ); ?>
+				</p>
+
+				<button type="submit" class="button button-primary"
+					onclick="return confirm('<?php echo esc_js( __( 'This will reassign all affected vendors. Are you sure?', 'corido-vendor-tracker' ) ); ?>')">
+					<?php echo esc_html( sprintf(
+						_n( 'Reassign %d Vendor', 'Reassign %d Vendors', $orphan_count, 'corido-vendor-tracker' ),
+						$orphan_count
+					) ); ?>
+				</button>
+			</form>
+			<?php else : ?>
+			<div class="notice notice-success inline" style="margin:12px 0;">
+				<p><?php esc_html_e( 'All vendor assignments are in order — no out-of-role agents found.', 'corido-vendor-tracker' ); ?></p>
+			</div>
+			<?php endif; ?>
+		</div>
+
 		<!-- Agent accounts overview -->
 		<div class="cvt-card">
 			<h2 class="cvt-card-title"><?php esc_html_e( 'Agent Accounts', 'corido-vendor-tracker' ); ?></h2>

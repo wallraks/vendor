@@ -111,13 +111,16 @@ class CVT_Roles {
 	}
 
 	/**
-	 * Return all WordPress users that have any CVT role.
+	 * Return WordPress users eligible to be assigned as agents.
+	 * The roles queried are driven by Settings → Agent Role Configuration.
+	 * Falls back to CVT roles + administrator if nothing is configured.
 	 *
 	 * @return WP_User[]
 	 */
 	public static function get_agents() {
+		$roles = CVT_Settings::get_assignable_roles();
 		return get_users( array(
-			'role__in' => array( 'administrator', 'cvt_admin', 'cvt_senior_agent', 'cvt_junior_agent' ),
+			'role__in' => $roles,
 			'orderby'  => 'display_name',
 			'order'    => 'ASC',
 		) );

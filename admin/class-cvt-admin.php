@@ -16,9 +16,10 @@ class CVT_Admin {
 		add_action( 'admin_post_cvt_save_item',     array( $this, 'handle_save_item' ) );
 		add_action( 'admin_post_cvt_update_status', array( $this, 'handle_update_status' ) );
 		add_action( 'admin_post_cvt_save_payout',   array( $this, 'handle_save_payout' ) );
-		add_action( 'admin_post_cvt_save_settings', array( $this, 'handle_save_settings' ) );
-		add_action( 'admin_post_cvt_delete_vendor', array( $this, 'handle_delete_vendor' ) );
-		add_action( 'admin_post_cvt_delete_item',   array( $this, 'handle_delete_item' ) );
+		add_action( 'admin_post_cvt_save_settings',  array( $this, 'handle_save_settings' ) );
+		add_action( 'admin_post_cvt_bulk_reassign',  array( $this, 'handle_bulk_reassign' ) );
+		add_action( 'admin_post_cvt_delete_vendor',  array( $this, 'handle_delete_vendor' ) );
+		add_action( 'admin_post_cvt_delete_item',    array( $this, 'handle_delete_item' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -270,6 +271,85 @@ class CVT_Admin {
 		}
 		$this->redirect_with_notice( admin_url( 'admin.php?page=cvt-settings' ),
 			__( 'Settings saved.', 'corido-vendor-tracker' ) );
+	}
+
+	public function handle_bulk_reassign() {
+		check_admin_referer( 'cvt_bulk_reassign' );
+		if ( ! current_user_can( 'cvt_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'corido-vendor-tracker' ) );
+		}
+
+		global $wpdb;
+
+		$new_agent_id = absint( $_POST['reassign_to'] ?? 0 );
+
+		// Build safe integer list of currently valid agent IDs.
+		$valid_ids = array_map( 'intval', (array) get_users( array(
+			'role__in' => CVT_Settings::get_assignable_roles(),
+			'fields'   => 'ID',
+		) ) );
+		$valid_ids = array_filter( $valid_ids ); // remove any zeros
+
+		// Validate the destination agent (skip check when unassigning).
+		if ( $new_agent_id && ! in_array( $new_agent_id, $valid_ids, true ) ) {
+			$this->redirect_with_error( 'cvt-settings', __( 'The selected agent is not in an allowed role.', 'corido-vendor-tracker' ) );
+			return;
+		}
+
+		// Build WHERE clause identifying out-of-role assignments.
+		// $valid_ids contains only integers so implode() is safe here.
+		if ( empty( $valid_ids ) ) {
+			$where = 'assigned_agent_id IS NOT NULL AND assigned_agent_id != 0';
+		} else {
+			$in_list = implode( ',', $valid_ids );
+			$where   = "assigned_agent_id IS NOT NULL AND assigned_agent_id != 0 AND assigned_agent_id NOT IN ($in_list)";
+		}
+
+		$affected_ids = $wpdb->get_col( 'SELECT id FROM ' . CVT_DB::vendors() . " WHERE $where" );
+
+		if ( empty( $affected_ids ) ) {
+			$this->redirect_with_notice(
+				admin_url( 'admin.php?page=cvt-settings' ),
+				__( 'No vendors needed reassignment.', 'corido-vendor-tracker' )
+			);
+			return;
+		}
+
+		$now = esc_sql( CVT_DB::now() );
+
+		if ( $new_agent_id ) {
+			$wpdb->query( $wpdb->prepare(
+				'UPDATE ' . CVT_DB::vendors() . " SET assigned_agent_id = %d, updated_at = %s WHERE $where",
+				$new_agent_id,
+				CVT_DB::now()
+			) );
+		} else {
+			// NULL assignment — esc_sql() on datetime is safe; $where is integer-only.
+			$wpdb->query( "UPDATE " . CVT_DB::vendors() . " SET assigned_agent_id = NULL, updated_at = '$now' WHERE $where" );
+		}
+
+		CVT_Activity_Log::log(
+			'vendor', 0, 'bulk_reassign',
+			null,
+			array( 'new_agent_id' => $new_agent_id ?: null, 'count' => count( $affected_ids ) ),
+			sprintf(
+				_n(
+					'Bulk reassignment: %d vendor updated (agent role no longer in configured roles).',
+					'Bulk reassignment: %d vendors updated (agent role no longer in configured roles).',
+					count( $affected_ids ),
+					'corido-vendor-tracker'
+				),
+				count( $affected_ids )
+			)
+		);
+
+		$this->redirect_with_notice(
+			admin_url( 'admin.php?page=cvt-settings' ),
+			sprintf(
+				_n( '%d vendor reassigned.', '%d vendors reassigned.', count( $affected_ids ), 'corido-vendor-tracker' ),
+				count( $affected_ids )
+			)
+		);
 	}
 
 	public function handle_delete_vendor() {

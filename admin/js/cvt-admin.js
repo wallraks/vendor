@@ -7,6 +7,8 @@
  * 4. WP Media uploader for item images
  * 5. Image removal via AJAX
  * 6. Confirm-before-delete
+ * 7. Agreement file uploader (single file, image or PDF)
+ * 8. Price-change note reveal (edit mode)
  */
 /* global CVT, wp */
 (function ($) {
@@ -48,6 +50,11 @@
 					url:    CVT.ajax_url,
 					method: 'GET',
 					data:   { action: 'cvt_listing_search', nonce: CVT.nonce, q: q },
+					error: function () {
+						$listingSugg.html(
+							'<div class="cvt-suggestion-item cvt-suggestion-empty">Search unavailable — check your connection.</div>'
+						).removeAttr('hidden').show();
+					},
 					success: function (res) {
 						$listingSugg.empty();
 
@@ -355,5 +362,64 @@
 	$(document).on('click', '.cvt-delete-link', function (e) {
 		if (!confirm(CVT.i18n.confirm_delete)) { e.preventDefault(); }
 	});
+
+	// -------------------------------------------------------------------------
+	// 7. Agreement File Uploader — single file, images + PDF
+	// -------------------------------------------------------------------------
+	var agreementFrame;
+	var $addAgreementBtn   = $('#cvt-add-agreement');
+	var $agreementSelected = $('#cvt-agreement-selected');
+	var $agreementAttId    = $('#cvt-agreement-att-id');
+
+	if ($addAgreementBtn.length) {
+		$addAgreementBtn.on('click', function (e) {
+			e.preventDefault();
+			if (agreementFrame) { agreementFrame.open(); return; }
+
+			agreementFrame = wp.media({
+				title:    'Select Consignment Agreement',
+				button:   { text: 'Use this file' },
+				multiple: false
+			});
+
+			agreementFrame.on('select', function () {
+				var att = agreementFrame.state().get('selection').first().toJSON();
+				$agreementAttId.val(att.id);
+				var label = att.title || att.filename || 'Agreement';
+				$agreementSelected.html(
+					'<span class="dashicons dashicons-media-document"></span> ' +
+					'<a href="' + escHtml(att.url) + '" target="_blank" rel="noopener" class="cvt-agreement-chip-link">' + escHtml(label) + ' ↗</a> ' +
+					'<button type="button" id="cvt-agreement-remove" class="button button-small">Remove</button>'
+				).show();
+				$addAgreementBtn.hide();
+			});
+
+			agreementFrame.open();
+		});
+
+		$(document).on('click', '#cvt-agreement-remove', function () {
+			$agreementAttId.val('');
+			$agreementSelected.hide().empty();
+			$addAgreementBtn.show();
+		});
+	}
+
+	// -------------------------------------------------------------------------
+	// 8. Price-change note reveal (edit mode)
+	// -------------------------------------------------------------------------
+	var $origPrice     = $('#cvt-original-price');
+	var $priceNoteWrap = $('#cvt-price-note-wrap');
+
+	if ($origPrice.length && $priceNoteWrap.length) {
+		var originalPrice = parseFloat($origPrice.val()) || 0;
+		$sellingPrice.on('input change', function () {
+			var current = parseFloat($(this).val()) || 0;
+			if (Math.abs(current - originalPrice) > 0.001) {
+				$priceNoteWrap.show();
+			} else {
+				$priceNoteWrap.hide();
+			}
+		});
+	}
 
 })(jQuery);

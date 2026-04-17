@@ -18,6 +18,7 @@ class CVT_Ajax {
 		add_action( 'wp_ajax_cvt_vendor_search',     array( $this, 'vendor_search' ) );
 		add_action( 'wp_ajax_cvt_payout_preview',    array( $this, 'payout_preview' ) );
 		add_action( 'wp_ajax_cvt_remove_item_image', array( $this, 'remove_item_image' ) );
+		add_action( 'wp_ajax_cvt_waitlist_matches',  array( $this, 'waitlist_matches' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -42,20 +43,36 @@ class CVT_Ajax {
 		$post_type = CVT_Settings::get_listivo_post_type();
 		$taxonomy  = CVT_Settings::get_listivo_taxonomy();
 
-		$wp_query = new WP_Query( array(
-			'post_type'      => $post_type,
-			'post_status'    => 'publish',
-			's'              => $query,
-			'posts_per_page' => 10,
-			'no_found_rows'  => true,
+		if ( empty( $query ) || empty( $post_type ) ) {
+			wp_send_json_success( array() );
+		}
+
+		// Direct title-only LIKE query — faster than WP_Query 's' (which also
+		// searches post_content with a double-sided LIKE, preventing index use).
+		global $wpdb;
+		$post_ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts}
+			 WHERE post_type   = %s
+			   AND post_status = 'publish'
+			   AND post_title  LIKE %s
+			 ORDER BY post_date DESC
+			 LIMIT 10",
+			$post_type,
+			'%' . $wpdb->esc_like( $query ) . '%'
 		) );
 
+		if ( empty( $post_ids ) ) {
+			wp_send_json_success( array() );
+		}
+
 		$listings = array();
-		foreach ( $wp_query->posts as $post ) {
+		foreach ( $post_ids as $post_id ) {
+			$post_id = (int) $post_id;
+
 			// Try common Listivo price meta keys in priority order.
 			$price = '';
 			foreach ( array( '_listivo1_listing_price', 'listivo1_listing_price', '_price', 'price' ) as $key ) {
-				$val = get_post_meta( $post->ID, $key, true );
+				$val = get_post_meta( $post_id, $key, true );
 				if ( '' !== $val && false !== $val ) {
 					$price = $val;
 					break;
@@ -65,24 +82,25 @@ class CVT_Ajax {
 			// Primary category term from the configured Listivo taxonomy.
 			$category = '';
 			if ( $taxonomy ) {
-				$terms = get_the_terms( $post->ID, $taxonomy );
+				$terms = get_the_terms( $post_id, $taxonomy );
 				if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
 					$category = $terms[0]->name;
 				}
 			}
 
+			$post = get_post( $post_id );
+
 			$listings[] = array(
-				'id'        => $post->ID,
+				'id'        => $post_id,
 				'title'     => $post->post_title,
-				'url'       => get_permalink( $post->ID ),
+				'url'       => get_permalink( $post_id ),
 				'price'     => $price,
 				'category'  => $category,
 				'excerpt'   => wp_trim_words( wp_strip_all_tags( $post->post_content ), 30, '…' ),
-				'thumbnail' => get_the_post_thumbnail_url( $post->ID, 'thumbnail' ) ?: '',
+				'thumbnail' => get_the_post_thumbnail_url( $post_id, 'thumbnail' ) ?: '',
 			);
 		}
 
-		wp_reset_postdata();
 		wp_send_json_success( $listings );
 	}
 
@@ -165,6 +183,26 @@ class CVT_Ajax {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Return open waitlist entries that could match a given item (used by the
+	 * item detail page match-notification banner).
+	 */
+	public function waitlist_matches() {
+		check_ajax_referer( 'cvt_ajax', 'nonce' );
+
+		if ( ! current_user_can( 'cvt_add_items' ) ) {
+			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
+		}
+
+		$item_id = absint( $_GET['item_id'] ?? 0 );
+		$item    = $item_id ? CVT_Item::get( $item_id ) : null;
+		if ( ! $item ) {
+			wp_send_json_error( array( 'message' => 'Item not found.' ), 404 );
+		}
+
+		wp_send_json_success( CVT_Waitlist::find_matches( $item ) );
 	}
 
 	// -------------------------------------------------------------------------

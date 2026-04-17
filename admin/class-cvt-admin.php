@@ -18,8 +18,11 @@ class CVT_Admin {
 		add_action( 'admin_post_cvt_save_payout',   array( $this, 'handle_save_payout' ) );
 		add_action( 'admin_post_cvt_save_settings',  array( $this, 'handle_save_settings' ) );
 		add_action( 'admin_post_cvt_bulk_reassign',  array( $this, 'handle_bulk_reassign' ) );
-		add_action( 'admin_post_cvt_delete_vendor',  array( $this, 'handle_delete_vendor' ) );
-		add_action( 'admin_post_cvt_delete_item',    array( $this, 'handle_delete_item' ) );
+		add_action( 'admin_post_cvt_delete_vendor',       array( $this, 'handle_delete_vendor' ) );
+		add_action( 'admin_post_cvt_delete_item',         array( $this, 'handle_delete_item' ) );
+		add_action( 'admin_post_cvt_save_waitlist',       array( $this, 'handle_save_waitlist' ) );
+		add_action( 'admin_post_cvt_delete_waitlist',     array( $this, 'handle_delete_waitlist' ) );
+		add_action( 'admin_post_cvt_waitlist_mark',       array( $this, 'handle_waitlist_mark' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -59,6 +62,10 @@ class CVT_Admin {
 		add_submenu_page( 'cvt-dashboard', __( 'Reports', 'corido-vendor-tracker' ),
 			__( 'Reports', 'corido-vendor-tracker' ),
 			'cvt_view_reports', 'cvt-reports', array( $this, 'page_reports' ) );
+
+		add_submenu_page( 'cvt-dashboard', __( 'Waiting List', 'corido-vendor-tracker' ),
+			__( 'Waiting List', 'corido-vendor-tracker' ),
+			'cvt_add_items', 'cvt-waitlist', array( $this, 'page_waitlist' ) );
 
 		add_submenu_page( 'cvt-dashboard', __( 'Settings', 'corido-vendor-tracker' ),
 			__( 'Settings', 'corido-vendor-tracker' ),
@@ -161,6 +168,19 @@ class CVT_Admin {
 		require CVT_PLUGIN_DIR . 'admin/views/settings.php';
 	}
 
+	public function page_waitlist() {
+		$this->require_cap( 'cvt_add_items' );
+		$action = sanitize_key( $_GET['action'] ?? 'list' );
+		switch ( $action ) {
+			case 'add':
+			case 'edit':
+				require CVT_PLUGIN_DIR . 'admin/views/waitlist/form.php';
+				break;
+			default:
+				require CVT_PLUGIN_DIR . 'admin/views/waitlist/list.php';
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Form handlers
 	// -------------------------------------------------------------------------
@@ -219,6 +239,17 @@ class CVT_Admin {
 		if ( is_wp_error( $result ) ) {
 			$this->redirect_with_error( 'cvt-items', $result->get_error_message(), $id ? "action=edit&id=$id" : 'action=add' );
 			return;
+		}
+
+		// On new item creation, check waiting list for potential matches and cache them.
+		if ( ! ( $post['item_id'] ?? 0 ) ) {
+			$new_item = CVT_Item::get( $id );
+			if ( $new_item ) {
+				$matches = CVT_Waitlist::find_matches( $new_item );
+				if ( ! empty( $matches ) ) {
+					set_transient( 'cvt_wl_matches_' . $id, $matches, HOUR_IN_SECONDS );
+				}
+			}
 		}
 
 		$this->redirect_with_notice( admin_url( "admin.php?page=cvt-items&action=view&id=$id" ),
@@ -372,6 +403,74 @@ class CVT_Admin {
 		}
 		$this->redirect_with_notice( admin_url( 'admin.php?page=cvt-items' ),
 			__( 'Item deleted.', 'corido-vendor-tracker' ) );
+	}
+
+	public function handle_save_waitlist() {
+		check_admin_referer( 'cvt_save_waitlist' );
+		if ( ! current_user_can( 'cvt_add_items' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'corido-vendor-tracker' ) );
+		}
+
+		$post = wp_unslash( $_POST );
+		$id   = absint( $post['waitlist_id'] ?? 0 );
+
+		if ( $id ) {
+			$result = CVT_Waitlist::update( $id, $post );
+		} else {
+			$result = CVT_Waitlist::create( $post );
+			if ( ! is_wp_error( $result ) ) {
+				$id = $result;
+			}
+		}
+
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_with_error( 'cvt-waitlist', $result->get_error_message(),
+				$id ? "action=edit&id=$id" : 'action=add' );
+			return;
+		}
+
+		$this->redirect_with_notice( admin_url( 'admin.php?page=cvt-waitlist' ),
+			__( 'Waiting list entry saved.', 'corido-vendor-tracker' ) );
+	}
+
+	public function handle_delete_waitlist() {
+		check_admin_referer( 'cvt_delete_waitlist' );
+		$id     = absint( $_GET['id'] ?? 0 );
+		$result = CVT_Waitlist::delete( $id );
+		if ( is_wp_error( $result ) ) {
+			wp_die( esc_html( $result->get_error_message() ), '', array( 'back_link' => true ) );
+		}
+		$this->redirect_with_notice( admin_url( 'admin.php?page=cvt-waitlist' ),
+			__( 'Entry deleted.', 'corido-vendor-tracker' ) );
+	}
+
+	/**
+	 * Mark a waitlist entry as matched or fulfilled from the item detail page.
+	 */
+	public function handle_waitlist_mark() {
+		check_admin_referer( 'cvt_waitlist_mark' );
+		if ( ! current_user_can( 'cvt_add_items' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'corido-vendor-tracker' ) );
+		}
+
+		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
+		$item_id     = absint( $_POST['item_id'] ?? 0 );
+		$new_status  = sanitize_key( $_POST['new_status'] ?? 'matched' );
+
+		if ( ! in_array( $new_status, array( 'matched', 'fulfilled', 'cancelled' ), true ) ) {
+			wp_die( esc_html__( 'Invalid status.', 'corido-vendor-tracker' ) );
+		}
+
+		CVT_Waitlist::update( $waitlist_id, array(
+			'status'          => $new_status,
+			'matched_item_id' => $item_id ?: null,
+		) );
+
+		$redirect = $item_id
+			? admin_url( "admin.php?page=cvt-items&action=view&id=$item_id" )
+			: admin_url( 'admin.php?page=cvt-waitlist' );
+
+		$this->redirect_with_notice( $redirect, __( 'Waiting list entry updated.', 'corido-vendor-tracker' ) );
 	}
 
 	// -------------------------------------------------------------------------

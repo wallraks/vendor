@@ -27,6 +27,11 @@ class CVT_DB {
 		return $wpdb->prefix . 'cvt_payouts';
 	}
 
+	public static function waitlist() {
+		global $wpdb;
+		return $wpdb->prefix . 'cvt_waitlist';
+	}
+
 	public static function activity() {
 		global $wpdb;
 		return $wpdb->prefix . 'cvt_activity_log';

@@ -66,6 +66,10 @@ class CVT_Item {
 			return new WP_Error( 'terminal', __( 'This item is closed and cannot be edited.', 'corido-vendor-tracker' ) );
 		}
 
+		// Capture price-change note before sanitization (not a DB column).
+		$price_note = sanitize_text_field( wp_unslash( $data['price_change_note'] ?? '' ) );
+		$old_price  = (float) $item->selling_price;
+
 		$update               = self::sanitize( $data );
 		$update['updated_at'] = CVT_DB::now();
 
@@ -78,6 +82,18 @@ class CVT_Item {
 		}
 
 		CVT_Activity_Log::log( 'item', $id, 'updated', (array) $item, $update );
+
+		// Log price changes as a dedicated event so they're easy to query separately.
+		$new_price = (float) $update['selling_price'];
+		if ( abs( $old_price - $new_price ) > 0.001 ) {
+			CVT_Activity_Log::log(
+				'item', $id, 'price_changed',
+				array( 'price' => $old_price ),
+				array( 'price' => $new_price ),
+				$price_note
+			);
+		}
+
 		return true;
 	}
 
@@ -379,6 +395,20 @@ class CVT_Item {
 	 * Input is expected to have already been run through wp_unslash() at the
 	 * controller layer (admin/class-cvt-admin.php form handlers).
 	 */
+	/**
+	 * Validate that an attachment exists and is an allowed type (image or PDF).
+	 * Returns the attachment ID on success, null otherwise.
+	 */
+	private static function validate_agreement_attachment( $att_id ) {
+		$att_id = absint( $att_id );
+		if ( ! $att_id ) {
+			return null;
+		}
+		$allowed = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf' );
+		$mime    = get_post_mime_type( $att_id );
+		return ( $mime && in_array( $mime, $allowed, true ) ) ? $att_id : null;
+	}
+
 	private static function sanitize( array $data ) {
 		$allowed_types = array( 'consignment', 'agency' );
 		$max           = CVT_Settings::max_lengths();
@@ -394,18 +424,19 @@ class CVT_Item {
 		$selling_price = max( 0, (float) ( $data['selling_price'] ?? 0 ) );
 
 		return array(
-			'vendor_id'           => absint( $data['vendor_id'] ?? 0 ),
-			'title'               => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
-			'description'         => sanitize_textarea_field( $data['description'] ?? '' ),
-			'category'            => substr( sanitize_text_field( $data['category'] ?? '' ), 0, $max['category'] ),
-			'market_value'        => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
-			'selling_price'       => $selling_price,
-			'deal_type'           => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
+			'vendor_id'              => absint( $data['vendor_id'] ?? 0 ),
+			'title'                  => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
+			'description'            => sanitize_textarea_field( $data['description'] ?? '' ),
+			'category'               => substr( sanitize_text_field( $data['category'] ?? '' ), 0, $max['category'] ),
+			'market_value'           => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
+			'selling_price'          => $selling_price,
+			'deal_type'              => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
 				? $data['deal_type'] : 'consignment',
-			'assigned_agent_id'   => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
-			'listivo_listing_url' => substr( esc_url_raw( $data['listivo_listing_url'] ?? '' ), 0, $max['listivo_listing_url'] ),
-			'date_received'       => $date_received,
-			'notes'               => sanitize_textarea_field( $data['notes'] ?? '' ),
+			'assigned_agent_id'      => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
+			'agreement_attachment_id' => self::validate_agreement_attachment( $data['agreement_attachment_id'] ?? 0 ),
+			'listivo_listing_url'    => substr( esc_url_raw( $data['listivo_listing_url'] ?? '' ), 0, $max['listivo_listing_url'] ),
+			'date_received'          => $date_received,
+			'notes'                  => sanitize_textarea_field( $data['notes'] ?? '' ),
 		);
 	}
 }

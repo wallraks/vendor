@@ -19,12 +19,15 @@ if ( $is_edit ) {
 	}
 }
 
-$categories    = CVT_Settings::categories();
-$agents        = CVT_Roles::get_agents();
-$images        = $is_edit ? CVT_Item::get_images( $item_id ) : array();
-$comm_rate     = CVT_Settings::commission_rate();
-$selling_price = (float) ( $item->selling_price ?? 0 );
-$calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
+$categories      = CVT_Settings::categories();
+$agents          = CVT_Roles::get_agents();
+$images          = $is_edit ? CVT_Item::get_images( $item_id ) : array();
+$comm_rate       = CVT_Settings::commission_rate();
+$selling_price   = (float) ( $item->selling_price ?? 0 );
+$calcs           = CVT_Payout::calculate( $selling_price, $comm_rate );
+$agreement_id    = (int) ( $item->agreement_attachment_id ?? 0 );
+$agreement_url   = $agreement_id ? wp_get_attachment_url( $agreement_id ) : '';
+$agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -42,7 +45,9 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 		<?php wp_nonce_field( 'cvt_save_item' ); ?>
 		<input type="hidden" name="action"  value="cvt_save_item">
 		<input type="hidden" name="item_id" value="<?php echo esc_attr( $item_id ); ?>">
-		<input type="hidden" name="cvt_image_ids" id="cvt_image_ids" value="">
+		<input type="hidden" name="cvt_image_ids"          id="cvt_image_ids"          value="">
+		<input type="hidden" name="agreement_attachment_id" id="cvt-agreement-att-id"
+			value="<?php echo esc_attr( $agreement_id ?: '' ); ?>">
 		<?php if ( ! $is_edit ) : ?>
 		<!-- Populated by JS when a listing is selected -->
 		<input type="hidden" name="description"         id="cvt-field-description">
@@ -259,6 +264,17 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 							<strong id="preview-payout"><?php echo esc_html( CVT_Settings::format_currency( $calcs['payout'] ) ); ?></strong>
 						</div>
 					</div>
+
+					<!-- Price-change note — revealed by JS when selling_price changes in edit mode -->
+					<div class="cvt-field" id="cvt-price-note-wrap" style="display:none;margin-top:12px;">
+						<label for="price_change_note">
+							<?php esc_html_e( 'Reason for price change', 'corido-vendor-tracker' ); ?>
+						</label>
+						<input type="text" id="price_change_note" name="price_change_note" class="widefat"
+							placeholder="<?php esc_attr_e( 'e.g. Vendor renegotiated, market adjustment…', 'corido-vendor-tracker' ); ?>">
+						<input type="hidden" id="cvt-original-price"
+							value="<?php echo esc_attr( $item->selling_price ?? '' ); ?>">
+					</div>
 				</div>
 
 			<?php endif; ?>
@@ -316,6 +332,33 @@ $calcs         = CVT_Payout::calculate( $selling_price, $comm_rate );
 							</option>
 							<?php endforeach; ?>
 						</select>
+					</div>
+				</div>
+
+				<!-- Agreement -->
+				<div class="cvt-card">
+					<h2 class="cvt-card-title"><?php esc_html_e( 'Consignment Agreement', 'corido-vendor-tracker' ); ?></h2>
+					<div class="cvt-field">
+						<?php if ( $agreement_url ) : ?>
+						<div id="cvt-agreement-selected" class="cvt-agreement-chip">
+							<span class="dashicons dashicons-media-document"></span>
+							<a href="<?php echo esc_url( $agreement_url ); ?>" target="_blank" rel="noopener" class="cvt-agreement-chip-link">
+								<?php echo esc_html( $agreement_title ?: basename( $agreement_url ) ); ?> ↗
+							</a>
+							<button type="button" id="cvt-agreement-remove" class="button button-small">
+								<?php esc_html_e( 'Remove', 'corido-vendor-tracker' ); ?>
+							</button>
+						</div>
+						<?php else : ?>
+						<div id="cvt-agreement-selected" class="cvt-agreement-chip" style="display:none;"></div>
+						<?php endif; ?>
+						<button type="button" id="cvt-add-agreement" class="button"
+							<?php echo $agreement_url ? 'style="display:none;"' : ''; ?>>
+							<?php esc_html_e( 'Upload / Select Agreement', 'corido-vendor-tracker' ); ?>
+						</button>
+						<p class="description">
+							<?php esc_html_e( 'Upload the signed consignment agreement (PDF or image). To reuse an agreement across multiple items, open the Media Library and select the previously uploaded file.', 'corido-vendor-tracker' ); ?>
+						</p>
 					</div>
 				</div>
 

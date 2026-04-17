@@ -105,6 +105,11 @@ class CVT_Activity_Log {
 			case 'updated':
 				return "$actor updated record details.";
 
+			case 'price_changed':
+				$from = esc_html( CVT_Settings::format_currency( $old['price'] ?? 0 ) );
+				$to   = esc_html( CVT_Settings::format_currency( $new['price'] ?? 0 ) );
+				return "$actor changed price from <strong>$from</strong> to <strong>$to</strong>.";
+
 			case 'payout_created':
 				return "$actor — payout record auto-created on sale.";
 

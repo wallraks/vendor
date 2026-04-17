@@ -52,6 +52,23 @@ if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
 $can_edit = current_user_can( 'cvt_edit_any_item' )
 	|| ( (int) $item->created_by === get_current_user_id() && current_user_can( 'cvt_edit_own_item' ) );
 
+// Agreement attachment.
+$agreement_att_id = (int) ( $item->agreement_attachment_id ?? 0 );
+$agreement_url    = $agreement_att_id ? wp_get_attachment_url( $agreement_att_id ) : '';
+$agreement_title  = $agreement_att_id ? get_the_title( $agreement_att_id ) : '';
+$agreement_mime   = $agreement_att_id ? get_post_mime_type( $agreement_att_id ) : '';
+
+// Price history — activity log entries where action = 'price_changed'.
+$price_history = array_values( array_filter( $logs, function( $l ) {
+	return $l->action === 'price_changed';
+} ) );
+
+// Waitlist matches (set as a transient after item creation).
+$wl_matches = get_transient( 'cvt_wl_matches_' . $item_id );
+if ( $wl_matches !== false ) {
+	delete_transient( 'cvt_wl_matches_' . $item_id ); // show once
+}
+
 // Button colour map per target status.
 $action_btn_class = array(
 	'posted'           => 'cvt-status-btn--posted',
@@ -82,6 +99,56 @@ $action_btn_class = array(
 	</div>
 
 	<?php CVT_Admin::render_notice(); ?>
+
+	<?php if ( ! empty( $wl_matches ) ) : ?>
+	<div class="notice notice-warning is-dismissible cvt-wl-match-notice">
+		<p>
+			<strong><?php echo esc_html( sprintf(
+				_n( '%d waiting list entry may match this item.', '%d waiting list entries may match this item.',
+					count( $wl_matches ), 'corido-vendor-tracker' ),
+				count( $wl_matches )
+			) ); ?></strong>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>">
+				<?php esc_html_e( 'View Waiting List →', 'corido-vendor-tracker' ); ?>
+			</a>
+		</p>
+		<table class="cvt-table widefat striped" style="margin-top:8px;">
+			<thead><tr>
+				<th><?php esc_html_e( 'Client', 'corido-vendor-tracker' ); ?></th>
+				<th><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?></th>
+				<th><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></th>
+				<th><?php esc_html_e( 'Budget', 'corido-vendor-tracker' ); ?></th>
+				<th></th>
+			</tr></thead>
+			<tbody>
+			<?php foreach ( $wl_matches as $wm ) :
+				$budget = $wm->budget_max
+					? 'up to ' . CVT_Settings::format_currency( $wm->budget_max )
+					: ( $wm->budget_min ? 'from ' . CVT_Settings::format_currency( $wm->budget_min ) : '—' );
+			?>
+			<tr>
+				<td><?php echo esc_html( $wm->client_name ); ?></td>
+				<td><a href="tel:<?php echo esc_attr( $wm->phone ); ?>"><?php echo esc_html( $wm->phone ); ?></a></td>
+				<td><?php echo esc_html( $wm->category ?: '—' ); ?></td>
+				<td><?php echo esc_html( $budget ); ?></td>
+				<td>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+						<?php wp_nonce_field( 'cvt_waitlist_mark' ); ?>
+						<input type="hidden" name="action"       value="cvt_waitlist_mark">
+						<input type="hidden" name="waitlist_id"  value="<?php echo esc_attr( $wm->id ); ?>">
+						<input type="hidden" name="item_id"      value="<?php echo esc_attr( $item_id ); ?>">
+						<input type="hidden" name="new_status"   value="matched">
+						<button type="submit" class="button button-small button-primary">
+							<?php esc_html_e( 'Mark Matched', 'corido-vendor-tracker' ); ?>
+						</button>
+					</form>
+				</td>
+			</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+	</div>
+	<?php endif; ?>
 
 	<!-- ================================================================
 	     STATUS STEPPER — full-width, shown above the detail grid
@@ -244,6 +311,24 @@ $action_btn_class = array(
 						</span>
 					</div>
 					<?php endif; ?>
+					<?php if ( $agreement_url ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Agreement', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<?php if ( $agreement_mime === 'application/pdf' ) : ?>
+							<span class="dashicons dashicons-pdf" style="vertical-align:middle;color:#d63638;"></span>
+							<?php else : ?>
+							<span class="dashicons dashicons-format-image" style="vertical-align:middle;"></span>
+							<?php endif; ?>
+							<a href="<?php echo esc_url( $agreement_url ); ?>" target="_blank" rel="noopener">
+								<?php echo esc_html( $agreement_title ?: basename( $agreement_url ) ); ?>
+							</a>
+							<a href="<?php echo esc_url( $agreement_url ); ?>" download class="button button-small" style="margin-left:8px;">
+								↓ <?php esc_html_e( 'Download', 'corido-vendor-tracker' ); ?>
+							</a>
+						</span>
+					</div>
+					<?php endif; ?>
 					<?php if ( $item->description ) : ?>
 					<div class="cvt-info-row cvt-info-row--full">
 						<span class="cvt-info-label"><?php esc_html_e( 'Description', 'corido-vendor-tracker' ); ?></span>
@@ -333,6 +418,38 @@ $action_btn_class = array(
 					</form>
 					<?php endif; ?>
 				</div>
+			</div>
+			<?php endif; ?>
+
+			<!-- Price History -->
+			<?php if ( ! empty( $price_history ) ) : ?>
+			<div class="cvt-card">
+				<h2 class="cvt-card-title"><?php esc_html_e( 'Price History', 'corido-vendor-tracker' ); ?></h2>
+				<table class="cvt-table widefat striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Date', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Old Price', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'New Price', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Changed By', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Reason', 'corido-vendor-tracker' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $price_history as $ph ) :
+							$old_v = json_decode( $ph->old_value, true );
+							$new_v = json_decode( $ph->new_value, true );
+						?>
+						<tr>
+							<td><?php echo esc_html( date_i18n( 'd M Y, H:i', strtotime( $ph->created_at ) ) ); ?></td>
+							<td class="cvt-price"><?php echo esc_html( CVT_Settings::format_currency( $old_v['price'] ?? 0 ) ); ?></td>
+							<td class="cvt-price"><strong><?php echo esc_html( CVT_Settings::format_currency( $new_v['price'] ?? 0 ) ); ?></strong></td>
+							<td><?php echo esc_html( $ph->display_name ?: '—' ); ?></td>
+							<td><?php echo $ph->note ? esc_html( $ph->note ) : '<span class="cvt-muted">—</span>'; ?></td>
+						</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
 			</div>
 			<?php endif; ?>
 

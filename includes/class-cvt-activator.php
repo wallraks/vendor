@@ -85,6 +85,7 @@ class CVT_Activator {
 			deal_type        enum('consignment','agency') NOT NULL DEFAULT 'consignment',
 			status           enum('under_review','posted','inquiry_received','sold','closed','withdrawn') NOT NULL DEFAULT 'under_review',
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,
+			agreement_attachment_id bigint(20) UNSIGNED DEFAULT NULL,
 			listivo_listing_url varchar(500) NOT NULL DEFAULT '',
 			date_received    date DEFAULT NULL,
 			date_posted      date DEFAULT NULL,
@@ -130,6 +131,32 @@ class CVT_Activator {
 			KEY item_id (item_id),
 			KEY vendor_id (vendor_id),
 			KEY status (status)
+		) $charset_collate;";
+
+		// Waiting list table.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}cvt_waitlist (
+			id               bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			client_name      varchar(200) NOT NULL DEFAULT '',
+			phone            varchar(50)  NOT NULL DEFAULT '',
+			email            varchar(200) NOT NULL DEFAULT '',
+			description      text,
+			category         varchar(100) NOT NULL DEFAULT '',
+			budget_min       decimal(12,2) DEFAULT NULL,
+			budget_max       decimal(12,2) DEFAULT NULL,
+			quantity         smallint(5) UNSIGNED NOT NULL DEFAULT 1,
+			timeframe        varchar(200) NOT NULL DEFAULT '',
+			notes            text,
+			status           enum('open','matched','fulfilled','cancelled') NOT NULL DEFAULT 'open',
+			matched_item_id  bigint(20) UNSIGNED DEFAULT NULL,
+			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,
+			created_by       bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			created_at       datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			updated_at       datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			PRIMARY KEY  (id),
+			KEY status (status),
+			KEY category (category),
+			KEY created_at (created_at),
+			KEY assigned_agent_id (assigned_agent_id)
 		) $charset_collate;";
 
 		// Activity log table.

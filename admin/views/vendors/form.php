@@ -50,16 +50,16 @@ $agents   = CVT_Roles::get_agents();
 
 					<div class="cvt-field-row">
 						<div class="cvt-field">
-							<label for="phone_primary"><?php esc_html_e( 'Primary Phone', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
+							<label for="phone_primary"><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
 							<input type="tel" id="phone_primary" name="phone_primary" required class="widefat"
 								value="<?php echo esc_attr( $vendor->phone_primary ?? '' ); ?>"
 								placeholder="+254 7XX XXX XXX">
 						</div>
 						<div class="cvt-field">
-							<label for="phone_secondary"><?php esc_html_e( 'Secondary Phone', 'corido-vendor-tracker' ); ?></label>
+							<label for="phone_secondary"><?php esc_html_e( 'WhatsApp', 'corido-vendor-tracker' ); ?></label>
 							<input type="tel" id="phone_secondary" name="phone_secondary" class="widefat"
 								value="<?php echo esc_attr( $vendor->phone_secondary ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'Optional', 'corido-vendor-tracker' ); ?>">
+								placeholder="<?php esc_attr_e( 'If different from phone', 'corido-vendor-tracker' ); ?>">
 						</div>
 					</div>
 
@@ -74,6 +74,21 @@ $agents   = CVT_Roles::get_agents();
 							<input type="text" id="location" name="location" class="widefat"
 								value="<?php echo esc_attr( $vendor->location ?? '' ); ?>"
 								placeholder="<?php esc_attr_e( 'e.g. Westlands, Nairobi', 'corido-vendor-tracker' ); ?>">
+						</div>
+					</div>
+
+					<div class="cvt-field-row">
+						<div class="cvt-field">
+							<label for="apartment_name"><?php esc_html_e( 'Apartment / Building', 'corido-vendor-tracker' ); ?></label>
+							<input type="text" id="apartment_name" name="apartment_name" class="widefat"
+								value="<?php echo esc_attr( $vendor->apartment_name ?? '' ); ?>"
+								placeholder="<?php esc_attr_e( 'e.g. Greenwood Apartments', 'corido-vendor-tracker' ); ?>">
+						</div>
+						<div class="cvt-field">
+							<label for="house_number"><?php esc_html_e( 'House / Unit No.', 'corido-vendor-tracker' ); ?></label>
+							<input type="text" id="house_number" name="house_number" class="widefat"
+								value="<?php echo esc_attr( $vendor->house_number ?? '' ); ?>"
+								placeholder="<?php esc_attr_e( 'e.g. A4, 12B', 'corido-vendor-tracker' ); ?>">
 						</div>
 					</div>
 

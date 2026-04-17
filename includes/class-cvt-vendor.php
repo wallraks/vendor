@@ -106,7 +106,9 @@ class CVT_Vendor {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '( v.name LIKE %s OR v.phone_primary LIKE %s OR v.phone_secondary LIKE %s OR v.email LIKE %s )';
+			$where[]  = '( v.name LIKE %s OR v.phone_primary LIKE %s OR v.phone_secondary LIKE %s OR v.email LIKE %s OR v.location LIKE %s OR v.apartment_name LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
@@ -203,15 +205,17 @@ class CVT_Vendor {
 		$allowed_channels = array( 'phone', 'whatsapp', 'email', 'walkin' );
 
 		return array(
-			'name'            => substr( sanitize_text_field( $data['name'] ?? '' ), 0, $max['name'] ),
-			'phone_primary'   => substr( sanitize_text_field( $data['phone_primary'] ?? '' ), 0, $max['phone'] ),
-			'phone_secondary' => substr( sanitize_text_field( $data['phone_secondary'] ?? '' ), 0, $max['phone'] ),
-			'email'           => substr( sanitize_email( $data['email'] ?? '' ), 0, $max['email'] ),
-			'location'        => substr( sanitize_text_field( $data['location'] ?? '' ), 0, $max['location'] ),
-			'intake_channel'  => in_array( $data['intake_channel'] ?? 'phone', $allowed_channels, true )
+			'name'             => substr( sanitize_text_field( $data['name'] ?? '' ), 0, $max['name'] ),
+			'phone_primary'    => substr( sanitize_text_field( $data['phone_primary'] ?? '' ), 0, $max['phone'] ),
+			'phone_secondary'  => substr( sanitize_text_field( $data['phone_secondary'] ?? '' ), 0, $max['phone'] ),
+			'email'            => substr( sanitize_email( $data['email'] ?? '' ), 0, $max['email'] ),
+			'location'         => substr( sanitize_text_field( $data['location'] ?? '' ), 0, $max['location'] ),
+			'apartment_name'   => substr( sanitize_text_field( $data['apartment_name'] ?? '' ), 0, $max['apartment_name'] ),
+			'house_number'     => substr( sanitize_text_field( $data['house_number'] ?? '' ), 0, $max['house_number'] ),
+			'intake_channel'   => in_array( $data['intake_channel'] ?? 'phone', $allowed_channels, true )
 				? $data['intake_channel']
 				: 'phone',
-			'notes'           => sanitize_textarea_field( $data['notes'] ?? '' ),
+			'notes'            => sanitize_textarea_field( $data['notes'] ?? '' ),
 			'assigned_agent_id' => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
 		);
 	}

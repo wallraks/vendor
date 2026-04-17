@@ -244,6 +244,8 @@ class CVT_Settings {
 			'phone'               => 50,
 			'email'               => 200,
 			'location'            => 300,
+			'apartment_name'      => 200,
+			'house_number'        => 100,
 			'title'               => 500,
 			'category'            => 100,
 			'listivo_listing_url' => 500,

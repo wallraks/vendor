@@ -3,7 +3,7 @@
  * Plugin Name:       Corido Vendor Tracker
  * Plugin URI:        https://corido.co.ke
  * Description:       Internal vendor and item tracking system for Corido Marketplace — manage vendors, items, deal statuses, commissions, and payouts from WordPress admin.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Corido Marketplace
@@ -14,8 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CVT_VERSION',     '1.2.0' );
-define( 'CVT_DB_VERSION',  '1' );
+define( 'CVT_VERSION',     '1.2.1' );
+define( 'CVT_DB_VERSION',  '2' );
 define( 'CVT_PLUGIN_FILE', __FILE__ );
 define( 'CVT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'CVT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -33,7 +33,8 @@ require_once CVT_PLUGIN_DIR . 'includes/class-cvt-roles.php';
 register_activation_hook( __FILE__, array( 'CVT_Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'CVT_Activator', 'deactivate' ) );
 
-add_action( 'init', array( 'CVT_Roles', 'register' ) );
+add_action( 'init',           array( 'CVT_Roles',     'register' ) );
+add_action( 'plugins_loaded', array( 'CVT_Activator', 'maybe_upgrade' ) );
 
 if ( is_admin() ) {
 	require_once CVT_PLUGIN_DIR . 'admin/class-cvt-admin.php';

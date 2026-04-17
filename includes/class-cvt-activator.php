@@ -28,6 +28,18 @@ class CVT_Activator {
 		flush_rewrite_rules();
 	}
 
+	/**
+	 * Runs on every plugins_loaded. Uses dbDelta to add any missing columns
+	 * for existing installs when CVT_DB_VERSION is bumped.
+	 */
+	public static function maybe_upgrade() {
+		if ( get_option( 'cvt_db_version' ) === CVT_DB_VERSION ) {
+			return;
+		}
+		self::create_tables();
+		update_option( 'cvt_db_version', CVT_DB_VERSION );
+	}
+
 	public static function deactivate() {
 		flush_rewrite_rules();
 	}
@@ -42,18 +54,20 @@ class CVT_Activator {
 
 		// Vendors table.
 		$sql[] = "CREATE TABLE {$wpdb->prefix}cvt_vendors (
-			id            bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			name          varchar(200) NOT NULL,
-			phone_primary varchar(50) NOT NULL DEFAULT '',
+			id              bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			name            varchar(200) NOT NULL,
+			phone_primary   varchar(50) NOT NULL DEFAULT '',
 			phone_secondary varchar(50) NOT NULL DEFAULT '',
-			email         varchar(200) NOT NULL DEFAULT '',
-			location      varchar(300) NOT NULL DEFAULT '',
-			intake_channel enum('phone','whatsapp','email','walkin') NOT NULL DEFAULT 'phone',
-			notes         text,
+			email           varchar(200) NOT NULL DEFAULT '',
+			location        varchar(300) NOT NULL DEFAULT '',
+			apartment_name  varchar(200) NOT NULL DEFAULT '',
+			house_number    varchar(100) NOT NULL DEFAULT '',
+			intake_channel  enum('phone','whatsapp','email','walkin') NOT NULL DEFAULT 'phone',
+			notes           text,
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,
-			created_by    bigint(20) UNSIGNED NOT NULL DEFAULT 0,
-			created_at    datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			updated_at    datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			created_by      bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			created_at      datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			updated_at      datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY  (id),
 			KEY assigned_agent_id (assigned_agent_id),
 			KEY created_at (created_at)

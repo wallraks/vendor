@@ -44,16 +44,19 @@ $logs         = CVT_Activity_Log::get_for_entity( 'vendor', $vendor_id );
 						<span class="cvt-info-value"><?php echo esc_html( $vendor->name ); ?></span>
 					</div>
 					<div class="cvt-info-row">
-						<span class="cvt-info-label"><?php esc_html_e( 'Primary Phone', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-label"><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value">
 							<a href="tel:<?php echo esc_attr( $vendor->phone_primary ); ?>"><?php echo esc_html( $vendor->phone_primary ?: '—' ); ?></a>
 						</span>
 					</div>
 					<?php if ( $vendor->phone_secondary ) : ?>
 					<div class="cvt-info-row">
-						<span class="cvt-info-label"><?php esc_html_e( 'Secondary Phone', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-label"><?php esc_html_e( 'WhatsApp', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value">
-							<a href="tel:<?php echo esc_attr( $vendor->phone_secondary ); ?>"><?php echo esc_html( $vendor->phone_secondary ); ?></a>
+							<a href="https://wa.me/<?php echo esc_attr( preg_replace( '/\D/', '', $vendor->phone_secondary ) ); ?>"
+								target="_blank" rel="noopener">
+								<?php echo esc_html( $vendor->phone_secondary ); ?>
+							</a>
 						</span>
 					</div>
 					<?php endif; ?>
@@ -69,6 +72,18 @@ $logs         = CVT_Activity_Log::get_for_entity( 'vendor', $vendor_id );
 						<span class="cvt-info-label"><?php esc_html_e( 'Location', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value"><?php echo esc_html( $vendor->location ?: '—' ); ?></span>
 					</div>
+					<?php if ( $vendor->apartment_name ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Apartment / Building', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value"><?php echo esc_html( $vendor->apartment_name ); ?></span>
+					</div>
+					<?php endif; ?>
+					<?php if ( $vendor->house_number ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'House / Unit No.', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value"><?php echo esc_html( $vendor->house_number ); ?></span>
+					</div>
+					<?php endif; ?>
 					<div class="cvt-info-row">
 						<span class="cvt-info-label"><?php esc_html_e( 'Intake Channel', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value"><?php echo esc_html( CVT_Settings::intake_channel_label( $vendor->intake_channel ) ); ?></span>

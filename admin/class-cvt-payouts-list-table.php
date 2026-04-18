@@ -96,11 +96,12 @@ class CVT_Payouts_List_Table extends WP_List_Table {
 		$paged    = $this->get_pagenum();
 
 		$result = CVT_Payout::get_all( array(
-			'status'  => sanitize_key( $_GET['status'] ?? '' ),
-			'orderby' => sanitize_key( $_GET['orderby'] ?? 'created_at' ),
-			'order'   => sanitize_key( $_GET['order'] ?? 'DESC' ),
+			'search'   => sanitize_text_field( $_GET['s'] ?? '' ),
+			'status'   => sanitize_key( $_GET['status'] ?? '' ),
+			'orderby'  => sanitize_key( $_GET['orderby'] ?? 'created_at' ),
+			'order'    => sanitize_key( $_GET['order'] ?? 'DESC' ),
 			'per_page' => $per_page,
-			'paged'   => $paged,
+			'paged'    => $paged,
 		) );
 
 		$this->items = $result['items'];

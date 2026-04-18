@@ -24,8 +24,15 @@ $pending_total = (float) $wpdb->get_var(
 
 	<?php CVT_Admin::render_notice(); ?>
 
-	<form method="get">
+	<form method="get" class="cvt-filter-bar">
 		<input type="hidden" name="page" value="cvt-payouts">
+		<?php $table->search_box( __( 'Search vendor or item…', 'corido-vendor-tracker' ), 'payout' ); ?>
+		<button type="submit" class="button"><?php esc_html_e( 'Filter', 'corido-vendor-tracker' ); ?></button>
+		<?php if ( ! empty( $_GET['s'] ) || ! empty( $_GET['status'] ) ) : ?>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-payouts' ) ); ?>" class="button">
+			<?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?>
+		</a>
+		<?php endif; ?>
 		<?php $table->display(); ?>
 	</form>
 </div>

@@ -165,6 +165,7 @@ class CVT_Payout {
 		global $wpdb;
 
 		$defaults = array(
+			'search'    => '',
 			'status'    => '',
 			'vendor_id' => 0,
 			'orderby'   => 'created_at',
@@ -177,6 +178,12 @@ class CVT_Payout {
 		$where  = array( '1=1' );
 		$params = array();
 
+		if ( ! empty( $args['search'] ) ) {
+			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$where[]  = '( v.name LIKE %s OR i.title LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+		}
 		if ( ! empty( $args['status'] ) ) {
 			$where[]  = 'p.status = %s';
 			$params[] = $args['status'];

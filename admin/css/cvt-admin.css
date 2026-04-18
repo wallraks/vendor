@@ -28,8 +28,12 @@
    LAYOUT WRAPPERS
    ============================================================ */
 .cvt-wrap {
-	max-width: 1200px;
+	max-width: 100%;
 }
+
+/* Wider item-name column — gives more room for long titles */
+.cvt-wrap .wp-list-table .column-title { width: 28%; min-width: 200px; }
+.cvt-wrap .wp-list-table .column-name  { width: 24%; min-width: 180px; }
 
 .cvt-page-header {
 	display: flex;

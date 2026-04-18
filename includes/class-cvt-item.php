@@ -216,7 +216,7 @@ class CVT_Item {
 	/**
 	 * Fetch a paginated, filtered list of items.
 	 *
-	 * @param  array $args { search, vendor_id, status, category, agent_id, orderby, order, per_page, paged }
+	 * @param  array $args { search, vendor_id, status, category, deal_type, agent_id, orderby, order, per_page, paged }
 	 * @return array { items, total }
 	 */
 	public static function get_all( array $args = array() ) {
@@ -227,6 +227,7 @@ class CVT_Item {
 			'vendor_id' => 0,
 			'status'    => '',
 			'category'  => '',
+			'deal_type' => '',
 			'agent_id'  => 0,
 			'orderby'   => 'created_at',
 			'order'     => 'DESC',
@@ -256,6 +257,13 @@ class CVT_Item {
 		if ( ! empty( $args['category'] ) ) {
 			$where[]  = 'i.category = %s';
 			$params[] = $args['category'];
+		}
+		if ( ! empty( $args['deal_type'] ) ) {
+			$allowed_types = array( 'consignment', 'agency', 'listing' );
+			if ( in_array( $args['deal_type'], $allowed_types, true ) ) {
+				$where[]  = 'i.deal_type = %s';
+				$params[] = $args['deal_type'];
+			}
 		}
 		if ( ! empty( $args['agent_id'] ) ) {
 			$where[]  = 'i.assigned_agent_id = %d';

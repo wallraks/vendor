@@ -85,15 +85,16 @@ class CVT_Vendor {
 	/**
 	 * Fetch a paginated, filtered list of vendors.
 	 *
-	 * @param  array $args { search, agent_id, orderby, order, per_page, paged }
+	 * @param  array $args { search, agent_id, intake_channel, orderby, order, per_page, paged }
 	 * @return array { items, total }
 	 */
 	public static function get_all( array $args = array() ) {
 		global $wpdb;
 
 		$defaults = array(
-			'search'   => '',
-			'agent_id' => 0,
+			'search'         => '',
+			'agent_id'       => 0,
+			'intake_channel' => '',
 			'orderby'  => 'created_at',
 			'order'    => 'DESC',
 			'per_page' => 20,
@@ -118,6 +119,13 @@ class CVT_Vendor {
 		if ( ! empty( $args['agent_id'] ) ) {
 			$where[]  = 'v.assigned_agent_id = %d';
 			$params[] = absint( $args['agent_id'] );
+		}
+		if ( ! empty( $args['intake_channel'] ) ) {
+			$allowed_channels = array( 'phone', 'whatsapp', 'email', 'walkin' );
+			if ( in_array( $args['intake_channel'], $allowed_channels, true ) ) {
+				$where[]  = 'v.intake_channel = %s';
+				$params[] = $args['intake_channel'];
+			}
 		}
 
 		$allowed_orderby = array( 'created_at', 'name', 'id' );

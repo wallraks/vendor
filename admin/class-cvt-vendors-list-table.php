@@ -86,11 +86,13 @@ class CVT_Vendors_List_Table extends WP_List_Table {
 		$paged    = $this->get_pagenum();
 
 		$result = CVT_Vendor::get_all( array(
-			'search'   => sanitize_text_field( $_GET['s'] ?? '' ),
-			'orderby'  => sanitize_key( $_GET['orderby'] ?? 'created_at' ),
-			'order'    => sanitize_key( $_GET['order'] ?? 'DESC' ),
-			'per_page' => $per_page,
-			'paged'    => $paged,
+			'search'         => sanitize_text_field( $_GET['s'] ?? '' ),
+			'agent_id'       => absint( $_GET['agent_id'] ?? 0 ),
+			'intake_channel' => sanitize_key( $_GET['intake_channel'] ?? '' ),
+			'orderby'        => sanitize_key( $_GET['orderby'] ?? 'created_at' ),
+			'order'          => sanitize_key( $_GET['order'] ?? 'DESC' ),
+			'per_page'       => $per_page,
+			'paged'          => $paged,
 		) );
 
 		$this->items = $result['items'];

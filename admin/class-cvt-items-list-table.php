@@ -169,6 +169,8 @@ class CVT_Items_List_Table extends WP_List_Table {
 			'vendor_id' => absint( $_GET['vendor_id'] ?? 0 ),
 			'status'    => sanitize_key( $_GET['status'] ?? '' ),
 			'category'  => sanitize_text_field( $_GET['category'] ?? '' ),
+			'deal_type' => sanitize_key( $_GET['deal_type'] ?? '' ),
+			'agent_id'  => absint( $_GET['agent_id'] ?? 0 ),
 			'orderby'   => sanitize_key( $_GET['orderby'] ?? 'created_at' ),
 			'order'     => sanitize_key( $_GET['order'] ?? 'DESC' ),
 			'per_page'  => $per_page,

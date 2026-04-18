@@ -69,11 +69,20 @@ $status_labels = array(
 		</select>
 		<?php endif; ?>
 
+		<?php if ( $agents ) : ?>
+		<select name="agent_id">
+			<option value=""><?php esc_html_e( 'All agents', 'corido-vendor-tracker' ); ?></option>
+			<?php foreach ( $agents as $agent ) : ?>
+			<option value="<?php echo esc_attr( $agent->ID ); ?>" <?php selected( $filter_agent, $agent->ID ); ?>>
+				<?php echo esc_html( $agent->display_name ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
+		<?php endif; ?>
+
 		<button type="submit" class="button"><?php esc_html_e( 'Filter', 'corido-vendor-tracker' ); ?></button>
-		<?php if ( $filter_status || $filter_category || $filter_search ) : ?>
-		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="button">
-			<?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?>
-		</a>
+		<?php if ( $filter_status || $filter_category || $filter_search || $filter_agent ) : ?>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?></a>
 		<?php endif; ?>
 	</form>
 

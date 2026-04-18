@@ -203,6 +203,7 @@
 
 	if ($vendorSearch.length) {
 		$vendorSearch.wrap('<div id="cvt-vendor-search-wrap" style="position:relative;"></div>');
+		$('#cvt-vendor-search-wrap').append($vendorSugg);
 
 		$vendorSearch.on('input', function () {
 			clearTimeout(vendorTimer);

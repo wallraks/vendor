@@ -1,5 +1,5 @@
 /*
- * Corido Vendor Tracker — Admin Styles
+ * CR Business Suite — Admin Styles
  * Material Design-inspired, scoped to .cvt-wrap to prevent leakage.
  * All selectors are prefixed .cvt- to avoid conflicts with Listivo or WP core.
  */
@@ -206,6 +206,61 @@
 	font-size: 13px;
 	padding: 4px 12px;
 }
+
+/* Deal info dot + tooltip -------------------------------------------------- */
+.cvt-deal-info {
+	position: relative;
+	display: inline-block;
+	font-size: 16px;
+	line-height: 1;
+	cursor: default;
+	vertical-align: middle;
+}
+.cvt-deal-info--ok    { color: #2e7d32; }
+.cvt-deal-info--warn  { color: #e65100; }
+.cvt-deal-info--error { color: #b71c1c; }
+
+/* Tooltip bubble */
+.cvt-deal-info::after {
+	content: attr(data-tooltip);
+	position: absolute;
+	right: calc(100% + 8px);
+	top: 50%;
+	transform: translateY(-50%);
+	white-space: pre;          /* honour &#10; line breaks */
+	background: #1d1d1d;
+	color: #fff;
+	font-size: 12px;
+	line-height: 1.6;
+	padding: 8px 10px;
+	border-radius: 4px;
+	min-width: 200px;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity .15s ease;
+	z-index: 9999;
+}
+/* Arrow pointing right */
+.cvt-deal-info::before {
+	content: '';
+	position: absolute;
+	right: calc(100% + 2px);
+	top: 50%;
+	transform: translateY(-50%);
+	border: 5px solid transparent;
+	border-left-color: #1d1d1d;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity .15s ease;
+	z-index: 9999;
+}
+.cvt-deal-info:hover::after,
+.cvt-deal-info:hover::before {
+	opacity: 1;
+}
+
+/* Keep the deal_info column narrow */
+.column-deal_info { width: 36px; text-align: center; }
 
 .cvt-count-chip {
 	display: inline-block;

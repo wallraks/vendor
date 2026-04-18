@@ -71,17 +71,17 @@ class CVT_Roles {
 		// Create or refresh custom roles.
 		self::add_or_update_role(
 			'cvt_admin',
-			__( 'Corido Admin', 'corido-vendor-tracker' ),
+			__( 'CR Admin', 'corido-vendor-tracker' ),
 			array_merge( array( 'read' => true ), $tiers['admin'] )
 		);
 		self::add_or_update_role(
 			'cvt_senior_agent',
-			__( 'Corido Senior Agent', 'corido-vendor-tracker' ),
+			__( 'CR Senior Agent', 'corido-vendor-tracker' ),
 			array_merge( array( 'read' => true ), $tiers['senior'] )
 		);
 		self::add_or_update_role(
 			'cvt_junior_agent',
-			__( 'Corido Junior Agent', 'corido-vendor-tracker' ),
+			__( 'CR Junior Agent', 'corido-vendor-tracker' ),
 			array_merge( array( 'read' => true ), $tiers['junior'] )
 		);
 

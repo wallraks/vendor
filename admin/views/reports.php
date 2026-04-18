@@ -149,7 +149,7 @@ if ( isset( $_GET['export'] ) && $_GET['export'] === 'csv' ) {
 						<td><strong><?php echo esc_html( CVT_Settings::format_currency( $revenue ) ); ?></strong></td>
 					</tr>
 					<tr>
-						<td><?php echo esc_html( sprintf( __( 'Corido Commission (avg %s%%)', 'corido-vendor-tracker' ), CVT_Settings::commission_rate() ) ); ?></td>
+						<td><?php echo esc_html( sprintf( __( 'CR Commission (avg %s%%)', 'corido-vendor-tracker' ), CVT_Settings::commission_rate() ) ); ?></td>
 						<td><?php echo esc_html( CVT_Settings::format_currency( $commission ) ); ?></td>
 					</tr>
 					<tr>

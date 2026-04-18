@@ -429,7 +429,7 @@ $action_btn_class = array(
 						<span><?php echo esc_html( CVT_Settings::format_currency( $payout->selling_price ) ); ?></span>
 					</div>
 					<div class="cvt-payout-row">
-						<span><?php echo esc_html( sprintf( __( 'Corido Commission (%s%%)', 'corido-vendor-tracker' ), $payout->commission_rate ) ); ?></span>
+						<span><?php echo esc_html( sprintf( __( 'CR Commission (%s%%)', 'corido-vendor-tracker' ), $payout->commission_rate ) ); ?></span>
 						<span>− <?php echo esc_html( CVT_Settings::format_currency( $payout->commission_amount ) ); ?></span>
 					</div>
 					<div class="cvt-payout-row cvt-payout-row--total">

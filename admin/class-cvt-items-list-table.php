@@ -17,15 +17,17 @@ class CVT_Items_List_Table extends WP_List_Table {
 
 	public function get_columns() {
 		return array(
-			'cb'            => '<input type="checkbox">',
-			'title'         => __( 'Item', 'corido-vendor-tracker' ),
-			'vendor_name'   => __( 'Vendor', 'corido-vendor-tracker' ),
-			'category'      => __( 'Category', 'corido-vendor-tracker' ),
-			'deal_type'     => __( 'Deal', 'corido-vendor-tracker' ),
-			'selling_price' => __( 'Price', 'corido-vendor-tracker' ),
-			'status'        => __( 'Status', 'corido-vendor-tracker' ),
-			'agent_name'    => __( 'Agent', 'corido-vendor-tracker' ),
-			'created_at'    => __( 'Added', 'corido-vendor-tracker' ),
+			'cb'             => '<input type="checkbox">',
+			'title'          => __( 'Item', 'corido-vendor-tracker' ),
+			'vendor_name'    => __( 'Vendor', 'corido-vendor-tracker' ),
+			'category'       => __( 'Category', 'corido-vendor-tracker' ),
+			'deal_type'      => __( 'Deal', 'corido-vendor-tracker' ),
+			'selling_price'  => __( 'Price', 'corido-vendor-tracker' ),
+			'status'         => __( 'Status', 'corido-vendor-tracker' ),
+			'payout_status'  => __( 'Payment', 'corido-vendor-tracker' ),
+			'agent_name'     => __( 'Agent', 'corido-vendor-tracker' ),
+			'created_at'     => __( 'Added', 'corido-vendor-tracker' ),
+			'deal_info'      => '',
 		);
 	}
 
@@ -83,6 +85,71 @@ class CVT_Items_List_Table extends WP_List_Table {
 	protected function column_status( $item ) {
 		$info = CVT_Settings::status_info( $item->status );
 		return '<span class="cvt-badge ' . esc_attr( $info['class'] ) . '">' . esc_html( $info['label'] ) . '</span>';
+	}
+
+	protected function column_payout_status( $item ) {
+		if ( ! $item->payout_status ) {
+			return '<span class="cvt-muted">—</span>';
+		}
+		if ( $item->payout_status === 'paid' ) {
+			return '<span class="cvt-badge cvt-badge--sold">' . esc_html__( 'Paid', 'corido-vendor-tracker' ) . '</span>';
+		}
+		return '<span class="cvt-badge cvt-badge--inquiry">' . esc_html__( 'Pending', 'corido-vendor-tracker' ) . '</span>';
+	}
+
+	/**
+	 * Deal completeness info icon — tooltip lists what's missing/present.
+	 * Green = fully complete, orange = partially complete, red = incomplete.
+	 */
+	protected function column_deal_info( $item ) {
+		$lines   = array();
+		$missing = 0;
+
+		// Agreement / signed doc.
+		if ( $item->agreement_attachment_id ) {
+			$lines[] = '✓ Agreement signed';
+		} else {
+			$lines[] = '✗ No agreement attached';
+			$missing++;
+		}
+
+		// Images.
+		$img_count = (int) $item->image_count;
+		if ( $img_count > 0 ) {
+			$lines[] = '✓ ' . sprintf( _n( '%d image', '%d images', $img_count, 'corido-vendor-tracker' ), $img_count );
+		} else {
+			$lines[] = '✗ No images';
+			$missing++;
+		}
+
+		// Listing URL.
+		if ( ! empty( $item->listivo_listing_url ) ) {
+			$lines[] = '✓ Listing URL set';
+		} else {
+			$lines[] = '✗ No listing URL';
+		}
+
+		// Payment (if applicable).
+		if ( $item->payout_status === 'paid' ) {
+			$lines[] = '✓ Payment confirmed';
+		} elseif ( $item->payout_status === 'pending' ) {
+			$lines[] = '⏳ Payment pending';
+		}
+
+		$tooltip = implode( '&#10;', $lines );
+
+		if ( $missing === 0 ) {
+			$cls   = 'cvt-deal-info cvt-deal-info--ok';
+			$icon  = '●';
+		} elseif ( $missing === 1 ) {
+			$cls   = 'cvt-deal-info cvt-deal-info--warn';
+			$icon  = '●';
+		} else {
+			$cls   = 'cvt-deal-info cvt-deal-info--error';
+			$icon  = '●';
+		}
+
+		return '<span class="' . esc_attr( $cls ) . '" data-tooltip="' . esc_attr( $tooltip ) . '" aria-label="' . esc_attr( strip_tags( str_replace( '&#10;', ', ', $tooltip ) ) ) . '">' . $icon . '</span>';
 	}
 
 	protected function column_agent_name( $item ) {

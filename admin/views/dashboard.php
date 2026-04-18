@@ -14,7 +14,7 @@ $sold_month   = (int) $wpdb->get_var( $wpdb->prepare(
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
-		<h1 class="cvt-page-title"><?php esc_html_e( 'Corido Vendor Tracker', 'corido-vendor-tracker' ); ?></h1>
+		<h1 class="cvt-page-title"><?php esc_html_e( 'CR Business Suite', 'corido-vendor-tracker' ); ?></h1>
 		<div class="cvt-page-actions">
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-vendors&action=add' ) ); ?>" class="button button-primary">
 				+ <?php esc_html_e( 'New Vendor', 'corido-vendor-tracker' ); ?>

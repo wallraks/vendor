@@ -34,8 +34,8 @@ class CVT_Admin {
 		$badge   = $pending ? ' <span class="awaiting-mod">' . $pending . '</span>' : '';
 
 		add_menu_page(
-			__( 'Corido Vendors', 'corido-vendor-tracker' ),
-			__( 'Corido Vendors', 'corido-vendor-tracker' ),
+			__( 'CR Business Suite', 'corido-vendor-tracker' ),
+			__( 'CR Business Suite', 'corido-vendor-tracker' ),
 			'cvt_add_vendors',
 			'cvt-dashboard',
 			array( $this, 'page_dashboard' ),

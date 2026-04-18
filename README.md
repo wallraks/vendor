@@ -1,6 +1,6 @@
-# Corido Vendor Tracker
+# CR Business Suite
 
-Internal WordPress plugin for [Corido Marketplace](https://corido.co.ke) — a Kenya-based recommerce platform. Gives the Customer Care team a clean, auditable system to manage vendor intake, item listings, deal tracking, commissions, and payouts entirely within WordPress admin.
+Internal WordPress plugin for [Corido Marketplace](https://corido.co.ke) — a Kenya-based recommerce platform. Gives the Customer Care team a clean, auditable system to manage vendor intake, item listings, deal tracking, commissions, payouts, and waiting lists entirely within WordPress admin.
 
 ---
 
@@ -459,6 +459,20 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.5.0 — Plugin renamed to CR Business Suite; Payment status & Deal completeness on items list
+
+**Changes**
+- **Plugin renamed** from *Corido Vendor Tracker* to *CR Business Suite*. Admin menu, dashboard heading, role display names (CR Admin / CR Senior Agent / CR Junior Agent), and all user-visible strings updated. Internal class names, file names, text domain, and capability slugs unchanged — no data migration needed.
+- **Payment status column** added to the items list table. Shows *Paid* (green) or *Pending* (orange) for items with a payout record; blank for items not yet sold.
+- **Deal completeness indicator** — a colour-coded dot in the rightmost column of the items list. Hover to see an inline tooltip listing:
+  - Agreement signed / No agreement attached
+  - Image count or no images
+  - Listing URL set or missing
+  - Payment status (if applicable)
+  - Green dot = all complete; orange = one item missing; red = two or more missing.
+
+---
 
 ### 1.4.0 — Per-item Commission Rate & Reverse Deal Transitions
 

@@ -410,7 +410,7 @@ $source_info = CVT_Settings::categories_source_info();
 						);
 						$role_labels = array(
 							'administrator'    => 'WordPress Admin',
-							'cvt_admin'        => 'Corido Admin',
+							'cvt_admin'        => 'CR Admin',
 							'cvt_senior_agent' => 'Senior Agent',
 							'cvt_junior_agent' => 'Junior Agent',
 						);

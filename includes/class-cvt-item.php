@@ -278,7 +278,13 @@ class CVT_Item {
 			? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
 			: $wpdb->get_var( $count_sql ) );
 
-		$select_sql = "SELECT i.*, v.name AS vendor_name, u.display_name AS agent_name
+		$select_sql = "SELECT i.*,
+			v.name AS vendor_name,
+			u.display_name AS agent_name,
+			( SELECT status FROM {$wpdb->prefix}cvt_payouts
+			  WHERE item_id = i.id ORDER BY id DESC LIMIT 1 ) AS payout_status,
+			( SELECT COUNT(*) FROM {$wpdb->prefix}cvt_item_images
+			  WHERE item_id = i.id ) AS image_count
 			FROM $tables
 			WHERE $where_sql
 			ORDER BY i.$orderby $order

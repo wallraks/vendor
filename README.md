@@ -259,9 +259,11 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `id` | bigint UNSIGNED PK | |
 | `name` | varchar(200) | |
 | `phone_primary` | varchar(50) | |
-| `phone_secondary` | varchar(50) | |
+| `phone_secondary` | varchar(50) | WhatsApp number |
 | `email` | varchar(200) | |
 | `location` | varchar(300) | |
+| `apartment_name` | varchar(200) | nullable, building/estate name |
+| `house_number` | varchar(100) | nullable, unit/door number |
 | `intake_channel` | enum | phone, whatsapp, email, walkin |
 | `notes` | text | |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
@@ -281,9 +283,30 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `deal_type` | enum | consignment, agency |
 | `status` | enum | under_review, posted, inquiry_received, sold, closed, withdrawn |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
+| `agreement_attachment_id` | bigint → wp_posts.ID | nullable, signed consignment agreement |
 | `listivo_listing_url` | varchar(500) | manual paste, no sync |
 | `date_received` / `date_posted` | date | nullable |
 | `notes` | text | |
+| `created_by` | bigint → wp_users.ID | |
+| `created_at` / `updated_at` | datetime | |
+
+### `wp_cvt_waitlist`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint UNSIGNED PK | |
+| `client_name` | varchar(200) | |
+| `phone` | varchar(50) | |
+| `email` | varchar(200) | nullable |
+| `description` | text | item specifications / requirements |
+| `category` | varchar(100) | nullable, any category if blank |
+| `budget_min` | decimal(12,2) | nullable |
+| `budget_max` | decimal(12,2) | nullable |
+| `quantity` | int UNSIGNED | default 1 |
+| `timeframe` | varchar(200) | nullable, e.g. "within 2 weeks" |
+| `notes` | text | internal agent notes |
+| `status` | enum | open, matched, fulfilled, cancelled |
+| `matched_item_id` | bigint → cvt_items.id | nullable, set when matched |
+| `assigned_agent_id` | bigint → wp_users.ID | nullable |
 | `created_by` | bigint → wp_users.ID | |
 | `created_at` / `updated_at` | datetime | |
 
@@ -342,6 +365,7 @@ corido-vendor-tracker/
 │   ├── class-cvt-vendor.php            # Vendor model (CRUD, search, capability checks)
 │   ├── class-cvt-item.php              # Item model (CRUD, status transitions, images)
 │   ├── class-cvt-payout.php            # Payout creation, mark-paid, calculations
+│   ├── class-cvt-waitlist.php          # Waiting list model (CRUD, match detection)
 │   └── class-cvt-roles.php             # Custom role and capability registration
 │
 ├── admin/
@@ -363,6 +387,9 @@ corido-vendor-tracker/
 │   │   │   └── detail.php             # Item detail + payout card + status updater + log
 │   │   ├── payouts/
 │   │   │   └── list.php                # Payouts list with pending total alert
+│   │   ├── waitlist/
+│   │   │   ├── list.php                # Waiting list entries with filters
+│   │   │   └── form.php                # Add / edit waiting list entry
 │   │   ├── settings.php                # Commission rate, categories, agent overview
 │   │   └── reports.php                 # Monthly reports + CSV export
 │   │
@@ -431,6 +458,44 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.3.0 — Consignment Agreements, Price History, Waitlist Tracker & Listing Search Fix
+
+**New features**
+- **Consignment agreement upload (P1):** Upload a signed agreement (image or PDF) per item via the WP Media Library. The file is stored as an attachment ID on the item record and shown on the item detail page with a download link. Multiple items can reference the same uploaded file. Server-side MIME validation ensures only `image/jpeg`, `image/png`, `image/gif`, `image/webp`, and `application/pdf` are accepted.
+- **Price change history (P4):** Every selling price edit is logged to the activity trail with old price, new price, timestamp, and who changed it. An optional reason note field appears automatically in edit mode when the price is changed (hidden otherwise). The item detail page shows a dedicated price history table above the activity log when history exists.
+- **Client waiting list / wanted items tracker (P5):** New `Waiting List` menu under Corido Vendors. Agents log client requests for items not in stock (category, budget range, quantity, timeframe, description). When a new item is created, the system auto-checks for open waitlist entries whose category and budget match — matches appear as a dismissal banner on the item detail page so agents can follow up. Waiting list entries support statuses: Open, Matched, Fulfilled, Cancelled.
+
+**Bug fixes**
+- **Listing search broken in Add Item form (P2):** `WP_Query` with the `s` parameter searched both `post_title` and `post_content` with double-sided `LIKE`, causing poor performance and unexpected mismatches. Replaced with a direct SQL query on `post_title LIKE '%term%'` — faster, predictable, index-friendly.
+
+**Improvements**
+- Vendor typeahead on the item form confirmed working end-to-end; AJAX error handler added for both listing search and vendor search dropdowns.
+- DB version bumped to 4; `maybe_upgrade()` runs idempotently on `plugins_loaded`.
+
+**Database changes**
+- `wp_cvt_items`: added `agreement_attachment_id bigint UNSIGNED DEFAULT NULL`
+- New table `wp_cvt_waitlist` (id, client_name, phone, email, description, category, budget_min, budget_max, quantity, timeframe, notes, status, matched_item_id, assigned_agent_id, created_by, created_at, updated_at)
+
+---
+
+### 1.2.1 — Vendor Location Details & WhatsApp Field
+
+**New features**
+- **Apartment / building name** and **house / unit number** fields added to vendor records (capture and display).
+- **"Secondary Phone" renamed to "WhatsApp"** throughout forms and detail views; WhatsApp numbers render as `wa.me` deep links on the vendor detail page.
+
+---
+
+### 1.2.0 — Agent Role Configuration, Vendor Reassignment & Listing Search
+
+**New features**
+- **Real-time listing search in Add Item form:** Type a Listivo listing title to auto-fill item title, category, and selling price from the live website listing. Dropdown suggestions show thumbnail, price, and category. Keyboard navigation (↑ ↓ Enter Escape) supported. "Change" button resets selection.
+- **Agent role configuration:** Settings page now includes a card to choose which WordPress roles are treated as CVT agents. Checkboxes for all registered roles; changes take effect immediately without code changes.
+- **Vendor reassignment tool:** Settings page card shows count of vendors assigned to deleted/invalid agents (orphans) and provides a one-click bulk reassign to any active agent.
+- **Listivo Slug Finder:** Settings page diagnostic card listing all registered post types and taxonomies, making it easy to identify the correct slug to enter in the Listivo integration settings.
+
+---
 
 ### 1.1.0 — Security Hardening, Visual Status Stepper & Listivo Category Integration
 

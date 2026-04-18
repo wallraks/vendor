@@ -118,7 +118,7 @@ class CVT_Admin {
 
 	public function page_dashboard() {
 		$this->require_cap( 'cvt_add_vendors' );
-		require CVT_PLUGIN_DIR . 'admin/views/dashboard.php';
+		require_once CVT_PLUGIN_DIR . 'admin/views/dashboard.php';
 	}
 
 	public function page_vendors() {
@@ -127,13 +127,13 @@ class CVT_Admin {
 		switch ( $action ) {
 			case 'add':
 			case 'edit':
-				require CVT_PLUGIN_DIR . 'admin/views/vendors/form.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/vendors/form.php';
 				break;
 			case 'view':
-				require CVT_PLUGIN_DIR . 'admin/views/vendors/detail.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/vendors/detail.php';
 				break;
 			default:
-				require CVT_PLUGIN_DIR . 'admin/views/vendors/list.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/vendors/list.php';
 		}
 	}
 
@@ -143,29 +143,29 @@ class CVT_Admin {
 		switch ( $action ) {
 			case 'add':
 			case 'edit':
-				require CVT_PLUGIN_DIR . 'admin/views/items/form.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/items/form.php';
 				break;
 			case 'view':
-				require CVT_PLUGIN_DIR . 'admin/views/items/detail.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/items/detail.php';
 				break;
 			default:
-				require CVT_PLUGIN_DIR . 'admin/views/items/list.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/items/list.php';
 		}
 	}
 
 	public function page_payouts() {
 		$this->require_cap( 'cvt_view_payouts' );
-		require CVT_PLUGIN_DIR . 'admin/views/payouts/list.php';
+		require_once CVT_PLUGIN_DIR . 'admin/views/payouts/list.php';
 	}
 
 	public function page_reports() {
 		$this->require_cap( 'cvt_view_reports' );
-		require CVT_PLUGIN_DIR . 'admin/views/reports.php';
+		require_once CVT_PLUGIN_DIR . 'admin/views/reports.php';
 	}
 
 	public function page_settings() {
 		$this->require_cap( 'cvt_manage_settings' );
-		require CVT_PLUGIN_DIR . 'admin/views/settings.php';
+		require_once CVT_PLUGIN_DIR . 'admin/views/settings.php';
 	}
 
 	public function page_waitlist() {
@@ -174,10 +174,10 @@ class CVT_Admin {
 		switch ( $action ) {
 			case 'add':
 			case 'edit':
-				require CVT_PLUGIN_DIR . 'admin/views/waitlist/form.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/waitlist/form.php';
 				break;
 			default:
-				require CVT_PLUGIN_DIR . 'admin/views/waitlist/list.php';
+				require_once CVT_PLUGIN_DIR . 'admin/views/waitlist/list.php';
 		}
 	}
 

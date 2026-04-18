@@ -41,6 +41,11 @@ if ( is_admin() ) {
 	require_once CVT_PLUGIN_DIR . 'admin/class-cvt-admin.php';
 	require_once CVT_PLUGIN_DIR . 'admin/class-cvt-ajax.php';
 	add_action( 'plugins_loaded', function () {
+		static $booted = false;
+		if ( $booted ) {
+			return;
+		}
+		$booted = true;
 		new CVT_Admin();
 		new CVT_Ajax();
 	} );

@@ -46,7 +46,7 @@ No external PHP packages, no Composer dependencies, no npm build step.
    - Pre-populates the category list with seven defaults.
 5. The **Corido Vendors** menu appears in the WP admin sidebar.
 
-To uninstall cleanly: deactivate the plugin, then delete it. The database tables are **not** dropped on deactivation — only on full plugin deletion (this prevents accidental data loss). If you want to drop tables on delete, add a `uninstall.php` file that calls `CVT_Roles::remove()` and drops each `wp_cvt_*` table.
+To uninstall cleanly: deactivate the plugin, then delete it via **Plugins → Delete**. An `uninstall.php` handler drops all `wp_cvt_*` tables, removes plugin options, and unregisters the three custom roles when the plugin is deleted. Deactivation alone does **not** remove any data.
 
 ---
 

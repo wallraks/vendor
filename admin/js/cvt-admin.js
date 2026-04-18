@@ -268,10 +268,14 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// 3. Live Payout Preview — tied to #selling_price and #commission_rate
+	// 3. Live Payout Preview — tied to #selling_price, #commission_rate, #listing_fee
 	// -------------------------------------------------------------------------
-	var $sellingPrice   = $('#selling_price');
-	var $commissionRate = $('#commission_rate');
+	var $sellingPrice        = $('#selling_price');
+	var $commissionRate      = $('#commission_rate');
+	var $dealType            = $('#deal_type');
+	var $listingFeeInput     = $('#listing_fee');
+	var $previewCommLabel    = $('#preview-commission-label');
+	var $previewListingLabel = $('#preview-listing-fee-label');
 
 	function cvtUpdatePayoutPreview() {
 		var price = parseFloat($sellingPrice.val()) || 0;
@@ -280,16 +284,24 @@
 			$('#preview-payout').text('KES 0.00');
 			return;
 		}
-		var rateVal = $commissionRate.val(); // '' = use global on the server
+		var dealType = $dealType.length ? ($dealType.val() || 'consignment') : 'consignment';
+		var ajaxData = { action: 'cvt_payout_preview', nonce: CVT.nonce, price: price, deal_type: dealType };
+		if (dealType === 'listing') {
+			ajaxData.listing_fee = parseFloat($listingFeeInput.val()) || 0;
+		} else {
+			ajaxData.commission_rate = $commissionRate.val();
+		}
 		$.ajax({
 			url:    CVT.ajax_url,
 			method: 'GET',
-			data:   { action: 'cvt_payout_preview', nonce: CVT.nonce, price: price, commission_rate: rateVal },
+			data:   ajaxData,
 			success: function (res) {
 				if (res.success) {
 					$('#preview-commission').text(res.data.formatted.commission);
 					$('#preview-payout').text(res.data.formatted.payout);
-					$('#preview-rate').text(res.data.commission_rate);
+					if (res.data.deal_type !== 'listing') {
+						$('#preview-rate').text(res.data.commission_rate);
+					}
 				}
 			}
 		});
@@ -301,6 +313,9 @@
 	}
 	if ($commissionRate.length) {
 		$commissionRate.on('input change', cvtUpdatePayoutPreview);
+	}
+	if ($listingFeeInput.length) {
+		$listingFeeInput.on('input change', cvtUpdatePayoutPreview);
 	}
 
 	// -------------------------------------------------------------------------
@@ -429,6 +444,26 @@
 				$priceNoteWrap.hide();
 			}
 		});
+	}
+
+	// -------------------------------------------------------------------------
+	// 9. Deal type toggle — show commission rate OR listing fee field
+	// -------------------------------------------------------------------------
+	function cvtApplyDealType(type) {
+		var isListing = (type === 'listing');
+		$('#cvt-commission-rate-wrap').toggle(!isListing);
+		$('#cvt-listing-fee-wrap').toggle(isListing);
+		$previewCommLabel.toggle(!isListing);
+		$previewListingLabel.toggle(isListing);
+		cvtUpdatePayoutPreview();
+	}
+
+	if ($dealType.length) {
+		$dealType.on('change', function () {
+			cvtApplyDealType($(this).val());
+		});
+		// Initialise for edit mode where deal_type may already be 'listing'.
+		cvtApplyDealType($dealType.val());
 	}
 
 })(jQuery);

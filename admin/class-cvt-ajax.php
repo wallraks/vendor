@@ -126,7 +126,8 @@ class CVT_Ajax {
 
 	/**
 	 * Live payout preview when agent types a selling price.
-	 * Returns { commission_rate, commission_amount, payout_amount, formatted }.
+	 * Returns { deal_type, commission_rate, commission_amount, payout_amount, formatted }.
+	 * For listing deal type, listing_fee replaces commission_rate.
 	 */
 	public function payout_preview() {
 		check_ajax_referer( 'cvt_ajax', 'nonce' );
@@ -135,9 +136,25 @@ class CVT_Ajax {
 			wp_send_json_error( array( 'message' => 'Permission denied.' ), 403 );
 		}
 
-		$price = max( 0, (float) ( $_GET['price'] ?? 0 ) );
+		$price     = max( 0, (float) ( $_GET['price'] ?? 0 ) );
+		$deal_type = sanitize_key( $_GET['deal_type'] ?? 'consignment' );
 
-		// Accept an optional per-item override; fall back to the global setting.
+		if ( $deal_type === 'listing' ) {
+			$fee    = max( 0, (float) ( $_GET['listing_fee'] ?? 0 ) );
+			$payout = max( 0, round( $price - $fee, 2 ) );
+			wp_send_json_success( array(
+				'deal_type'         => 'listing',
+				'listing_fee'       => $fee,
+				'commission_amount' => $fee,
+				'payout_amount'     => $payout,
+				'formatted'         => array(
+					'commission' => CVT_Settings::format_currency( $fee ),
+					'payout'     => CVT_Settings::format_currency( $payout ),
+				),
+			) );
+		}
+
+		// Consignment / agency: percentage-based commission.
 		$custom = $_GET['commission_rate'] ?? '';
 		$rate   = ( $custom !== '' )
 			? min( 100, max( 0, (float) $custom ) )
@@ -146,6 +163,7 @@ class CVT_Ajax {
 		$calcs = CVT_Payout::calculate( $price, $rate );
 
 		wp_send_json_success( array(
+			'deal_type'         => $deal_type,
 			'commission_rate'   => $rate,
 			'commission_amount' => $calcs['commission'],
 			'payout_amount'     => $calcs['payout'],

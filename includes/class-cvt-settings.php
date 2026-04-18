@@ -181,7 +181,17 @@ class CVT_Settings {
 	}
 
 	public static function deal_type_label( $type ) {
-		return ucfirst( $type );
+		$labels = array(
+			'consignment' => 'Consignment',
+			'agency'      => 'Agency',
+			'listing'     => 'Listing',
+		);
+		return $labels[ $type ] ?? ucfirst( $type );
+	}
+
+	/** Returns the default listing fee as a float (KES). */
+	public static function default_listing_fee() {
+		return (float) get_option( 'cvt_listing_fee_default', 500 );
 	}
 
 	/**

@@ -281,7 +281,8 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `market_value` | decimal(12,2) | nullable, vendor estimate |
 | `selling_price` | decimal(12,2) | |
 | `commission_rate` | decimal(5,2) | nullable; NULL = use global rate |
-| `deal_type` | enum | consignment, agency |
+| `listing_fee` | decimal(10,2) | nullable; flat fee for listing deal type |
+| `deal_type` | enum | consignment, agency, listing |
 | `status` | enum | under_review, posted, inquiry_received, sold, closed, withdrawn |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
 | `agreement_attachment_id` | bigint → wp_posts.ID | nullable, signed consignment agreement |
@@ -459,6 +460,20 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.6.0 — Listing Deal Type
+
+**New features**
+- **Listing deal type:** A new deal type option alongside *Consignment* and *Agency*. Select *Listing* in the Deal Type dropdown when a vendor is paying Corido to list an item on the platform rather than consigning it.
+- **Listing Fee field:** When *Listing* is selected, the Commission Rate field is replaced by a *Listing Fee (KES)* field. Leave it blank or 0 for a free listing; enter a value (default KES 500) when the vendor is charged. The fee is stored at the item level and snapshotted into the payout record on sale.
+- **Payout model for listings:** `commission_amount = listing_fee`, `payout_amount = selling_price − listing_fee`. Preserves the same accounting invariant as percentage-based deals. Both the payout preview (live AJAX) and the item detail payout card use *"Listing Fee"* as the label instead of *"CR Commission (X%)"*.
+- **Deal info tooltip updated:** The item detail view shows *Listing Fee* row in place of *Commission Rate* row for listing-type items, with *Free* shown when the fee is 0 or null.
+
+**Database changes**
+- `wp_cvt_items`: added `listing_fee decimal(10,2) DEFAULT NULL`; deal_type enum extended to `('consignment','agency','listing')`
+- DB version bumped to 6; `maybe_upgrade()` uses dbDelta for the new column and an explicit `ALTER TABLE` to extend the enum on existing installs
+
+---
 
 ### 1.5.0 — Plugin renamed to CR Business Suite; Payment status & Deal completeness on items list
 

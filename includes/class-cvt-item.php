@@ -462,7 +462,7 @@ class CVT_Item {
 	}
 
 	private static function sanitize( array $data ) {
-		$allowed_types = array( 'consignment', 'agency' );
+		$allowed_types = array( 'consignment', 'agency', 'listing' );
 		$max           = CVT_Settings::max_lengths();
 
 		// Validate date format (YYYY-MM-DD) before storing.
@@ -481,6 +481,12 @@ class CVT_Item {
 			$commission_rate = min( 100, max( 0, (float) $data['commission_rate'] ) );
 		}
 
+		// listing_fee: NULL means free listing (KES 0 charged). Only stored for listing deal type.
+		$listing_fee = null;
+		if ( isset( $data['listing_fee'] ) && $data['listing_fee'] !== '' ) {
+			$listing_fee = max( 0, (float) $data['listing_fee'] );
+		}
+
 		return array(
 			'vendor_id'               => absint( $data['vendor_id'] ?? 0 ),
 			'title'                   => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
@@ -489,6 +495,7 @@ class CVT_Item {
 			'market_value'            => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
 			'selling_price'           => $selling_price,
 			'commission_rate'         => $commission_rate,
+			'listing_fee'             => $listing_fee,
 			'deal_type'               => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
 				? $data['deal_type'] : 'consignment',
 			'assigned_agent_id'       => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,

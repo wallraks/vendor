@@ -37,6 +37,14 @@ class CVT_Activator {
 			return;
 		}
 		self::create_tables();
+
+		// dbDelta cannot modify existing enum definitions — do it explicitly.
+		global $wpdb;
+		$col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_items LIKE 'deal_type'" );
+		if ( $col && strpos( $col->Type, 'listing' ) === false ) {
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_items MODIFY deal_type enum('consignment','agency','listing') NOT NULL DEFAULT 'consignment'" );
+		}
+
 		update_option( 'cvt_db_version', CVT_DB_VERSION );
 	}
 
@@ -83,7 +91,8 @@ class CVT_Activator {
 			market_value     decimal(12,2) DEFAULT NULL,
 			selling_price    decimal(12,2) NOT NULL DEFAULT 0.00,
 			commission_rate  decimal(5,2) DEFAULT NULL,
-			deal_type        enum('consignment','agency') NOT NULL DEFAULT 'consignment',
+			listing_fee      decimal(10,2) DEFAULT NULL,
+			deal_type        enum('consignment','agency','listing') NOT NULL DEFAULT 'consignment',
 			status           enum('under_review','posted','inquiry_received','sold','closed','withdrawn') NOT NULL DEFAULT 'under_review',
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,
 			agreement_attachment_id bigint(20) UNSIGNED DEFAULT NULL,

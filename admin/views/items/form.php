@@ -23,12 +23,17 @@ $categories      = CVT_Settings::categories();
 $agents          = CVT_Roles::get_agents();
 $images          = $is_edit ? CVT_Item::get_images( $item_id ) : array();
 $global_rate     = CVT_Settings::commission_rate();
+$default_fee     = CVT_Settings::default_listing_fee();
 // Item-level rate: explicit value on edit, null on add (will inherit global).
 $item_rate       = ( $is_edit && $item->commission_rate !== null ) ? (float) $item->commission_rate : null;
 $eff_rate        = $item_rate ?? $global_rate;
 $comm_rate       = $global_rate; // kept for legacy template references
 $selling_price   = (float) ( $item->selling_price ?? 0 );
-$calcs           = CVT_Payout::calculate( $selling_price, $eff_rate );
+$is_listing      = ( $is_edit && $item->deal_type === 'listing' );
+$item_fee        = ( $is_edit && $item->listing_fee !== null ) ? (float) $item->listing_fee : null;
+$calcs           = $is_listing
+	? array( 'commission' => (float) ( $item->listing_fee ?? 0 ), 'payout' => max( 0, $selling_price - (float) ( $item->listing_fee ?? 0 ) ) )
+	: CVT_Payout::calculate( $selling_price, $eff_rate );
 $agreement_id    = (int) ( $item->agreement_attachment_id ?? 0 );
 $agreement_url   = $agreement_id ? wp_get_attachment_url( $agreement_id ) : '';
 $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
@@ -125,6 +130,7 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 							<select id="deal_type" name="deal_type" class="widefat">
 								<option value="consignment"><?php esc_html_e( 'Consignment', 'corido-vendor-tracker' ); ?></option>
 								<option value="agency"><?php esc_html_e( 'Agency', 'corido-vendor-tracker' ); ?></option>
+								<option value="listing"><?php esc_html_e( 'Listing', 'corido-vendor-tracker' ); ?></option>
 							</select>
 						</div>
 					</div>
@@ -142,18 +148,37 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 						</div>
 					</div>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
-								value=""
-								placeholder="<?php echo esc_attr( $global_rate ); ?>">
-							<p class="description">
-								<?php echo esc_html( sprintf(
-									__( 'Leave blank to use the global default (%s%%).', 'corido-vendor-tracker' ),
-									$global_rate
-								) ); ?>
-							</p>
+					<div id="cvt-commission-rate-wrap">
+						<div class="cvt-field-row">
+							<div class="cvt-field">
+								<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
+								<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
+									value=""
+									placeholder="<?php echo esc_attr( $global_rate ); ?>">
+								<p class="description">
+									<?php echo esc_html( sprintf(
+										__( 'Leave blank to use the global default (%s%%).', 'corido-vendor-tracker' ),
+										$global_rate
+									) ); ?>
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div id="cvt-listing-fee-wrap" style="display:none;">
+						<div class="cvt-field-row">
+							<div class="cvt-field">
+								<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
+								<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
+									value=""
+									placeholder="<?php echo esc_attr( $default_fee ); ?>">
+								<p class="description">
+									<?php echo esc_html( sprintf(
+										__( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ),
+										number_format( $default_fee, 0 )
+									) ); ?>
+								</p>
+							</div>
 						</div>
 					</div>
 
@@ -161,8 +186,8 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 					<div class="cvt-payout-preview" id="cvt-payout-preview">
 						<div class="cvt-payout-preview-row">
 							<span>
-								<?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?>
-								(<span id="preview-rate"><?php echo esc_html( $global_rate ); ?></span>%)
+								<span id="preview-commission-label"><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?> (<span id="preview-rate"><?php echo esc_html( $global_rate ); ?></span>%)</span>
+								<span id="preview-listing-fee-label" style="display:none;"><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
 							</span>
 							<strong id="preview-commission"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
 						</div>
@@ -230,6 +255,7 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 							<select id="deal_type" name="deal_type" class="widefat">
 								<option value="consignment" <?php selected( $item->deal_type, 'consignment' ); ?>><?php esc_html_e( 'Consignment', 'corido-vendor-tracker' ); ?></option>
 								<option value="agency"      <?php selected( $item->deal_type, 'agency' );      ?>><?php esc_html_e( 'Agency', 'corido-vendor-tracker' ); ?></option>
+								<option value="listing"     <?php selected( $item->deal_type, 'listing' );     ?>><?php esc_html_e( 'Listing', 'corido-vendor-tracker' ); ?></option>
 							</select>
 						</div>
 					</div>
@@ -271,25 +297,45 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 						</div>
 					</div>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
-								value="<?php echo esc_attr( $item_rate !== null ? $item_rate : '' ); ?>"
-								placeholder="<?php echo esc_attr( $global_rate ); ?>">
-							<p class="description">
-								<?php echo esc_html( sprintf(
-									__( 'Leave blank to use the global default (%s%%). Changing this will be logged.', 'corido-vendor-tracker' ),
-									$global_rate
-								) ); ?>
-							</p>
+					<div id="cvt-commission-rate-wrap"<?php echo $is_listing ? ' style="display:none;"' : ''; ?>>
+						<div class="cvt-field-row">
+							<div class="cvt-field">
+								<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
+								<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
+									value="<?php echo esc_attr( $item_rate !== null ? $item_rate : '' ); ?>"
+									placeholder="<?php echo esc_attr( $global_rate ); ?>">
+								<p class="description">
+									<?php echo esc_html( sprintf(
+										__( 'Leave blank to use the global default (%s%%). Changing this will be logged.', 'corido-vendor-tracker' ),
+										$global_rate
+									) ); ?>
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div id="cvt-listing-fee-wrap"<?php echo $is_listing ? '' : ' style="display:none;"'; ?>>
+						<div class="cvt-field-row">
+							<div class="cvt-field">
+								<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
+								<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
+									value="<?php echo esc_attr( $item_fee !== null ? $item_fee : '' ); ?>"
+									placeholder="<?php echo esc_attr( $default_fee ); ?>">
+								<p class="description">
+									<?php echo esc_html( sprintf(
+										__( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ),
+										number_format( $default_fee, 0 )
+									) ); ?>
+								</p>
+							</div>
 						</div>
 					</div>
 
 					<div class="cvt-payout-preview" id="cvt-payout-preview">
 						<div class="cvt-payout-preview-row">
-							<span><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?>
-								(<span id="preview-rate"><?php echo esc_html( $eff_rate ); ?></span>%)
+							<span>
+								<span id="preview-commission-label"<?php echo $is_listing ? ' style="display:none;"' : ''; ?>><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?> (<span id="preview-rate"><?php echo esc_html( $eff_rate ); ?></span>%)</span>
+								<span id="preview-listing-fee-label"<?php echo $is_listing ? '' : ' style="display:none;"'; ?>><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
 							</span>
 							<strong id="preview-commission"><?php echo esc_html( CVT_Settings::format_currency( $calcs['commission'] ) ); ?></strong>
 						</div>

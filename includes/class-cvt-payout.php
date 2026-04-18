@@ -23,12 +23,22 @@ class CVT_Payout {
 			return new WP_Error( 'not_found', __( 'Item not found.', 'corido-vendor-tracker' ) );
 		}
 
-		// Use item-level commission rate when set, otherwise fall back to global setting.
-		// Either way the rate is snapshotted here for auditability.
-		$rate  = ! is_null( $item->commission_rate )
-			? (float) $item->commission_rate
-			: CVT_Settings::commission_rate();
-		$calcs = self::calculate( (float) $item->selling_price, $rate );
+		// For listing items the fee is flat; for consignment/agency use the percentage rate.
+		if ( $item->deal_type === 'listing' ) {
+			$fee        = max( 0, (float) ( $item->listing_fee ?? 0 ) );
+			$commission = round( $fee, 2 );
+			$payout     = round( max( 0, (float) $item->selling_price - $commission ), 2 );
+			$rate       = 0.0;
+		} else {
+			// Use item-level commission rate when set, otherwise fall back to global setting.
+			// Either way the rate is snapshotted here for auditability.
+			$rate    = ! is_null( $item->commission_rate )
+				? (float) $item->commission_rate
+				: CVT_Settings::commission_rate();
+			$calcs      = self::calculate( (float) $item->selling_price, $rate );
+			$commission = $calcs['commission'];
+			$payout     = $calcs['payout'];
+		}
 
 		$wpdb->insert(
 			CVT_DB::payouts(),
@@ -37,8 +47,8 @@ class CVT_Payout {
 				'vendor_id'         => absint( $item->vendor_id ),
 				'selling_price'     => $item->selling_price,
 				'commission_rate'   => $rate,
-				'commission_amount' => $calcs['commission'],
-				'payout_amount'     => $calcs['payout'],
+				'commission_amount' => $commission,
+				'payout_amount'     => $payout,
 				'status'            => 'pending',
 				'created_at'        => CVT_DB::now(),
 				'updated_at'        => CVT_DB::now(),
@@ -50,8 +60,8 @@ class CVT_Payout {
 		CVT_Activity_Log::log( 'payout', $id, 'payout_created', null, array(
 			'item_id'           => $item_id,
 			'commission_rate'   => $rate,
-			'commission_amount' => $calcs['commission'],
-			'payout_amount'     => $calcs['payout'],
+			'commission_amount' => $commission,
+			'payout_amount'     => $payout,
 		) );
 		CVT_Item::bust_cache();
 		return $id;

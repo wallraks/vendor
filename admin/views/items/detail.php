@@ -325,6 +325,18 @@ $action_btn_class = array(
 						<span class="cvt-info-label"><?php esc_html_e( 'Selling Price', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value cvt-price"><?php echo esc_html( CVT_Settings::format_currency( $item->selling_price ) ); ?></span>
 					</div>
+					<?php if ( $item->deal_type === 'listing' ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<?php if ( $item->listing_fee > 0 ) : ?>
+							<?php echo esc_html( CVT_Settings::format_currency( $item->listing_fee ) ); ?>
+							<?php else : ?>
+							<span class="cvt-muted"><?php esc_html_e( 'Free', 'corido-vendor-tracker' ); ?></span>
+							<?php endif; ?>
+						</span>
+					</div>
+					<?php else : ?>
 					<div class="cvt-info-row">
 						<span class="cvt-info-label"><?php esc_html_e( 'Commission Rate', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value">
@@ -339,6 +351,7 @@ $action_btn_class = array(
 							<?php endif; ?>
 						</span>
 					</div>
+					<?php endif; ?>
 					<div class="cvt-info-row">
 						<span class="cvt-info-label"><?php esc_html_e( 'Assigned Agent', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value"><?php echo esc_html( $item->agent_name ?: '—' ); ?></span>
@@ -429,7 +442,11 @@ $action_btn_class = array(
 						<span><?php echo esc_html( CVT_Settings::format_currency( $payout->selling_price ) ); ?></span>
 					</div>
 					<div class="cvt-payout-row">
+						<?php if ( $item->deal_type === 'listing' ) : ?>
+						<span><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
+						<?php else : ?>
 						<span><?php echo esc_html( sprintf( __( 'CR Commission (%s%%)', 'corido-vendor-tracker' ), $payout->commission_rate ) ); ?></span>
+						<?php endif; ?>
 						<span>− <?php echo esc_html( CVT_Settings::format_currency( $payout->commission_amount ) ); ?></span>
 					</div>
 					<div class="cvt-payout-row cvt-payout-row--total">

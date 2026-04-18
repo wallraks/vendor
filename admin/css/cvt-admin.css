@@ -1238,3 +1238,112 @@
 .cvt-listing-link-field .cvt-listing-ext-link:hover {
 	text-decoration: underline;
 }
+
+/* ============================================================
+   TEAL STAT CARD (v1.7.0)
+   ============================================================ */
+:root {
+	--cvt-teal: #00695c;
+}
+.cvt-stat-card--teal { background: var(--cvt-teal); }
+
+/* ============================================================
+   POSTBOX / DRAGGABLE WIDGET LAYOUT (v1.7.0)
+   ============================================================ */
+.cvt-wrap #post-body.metabox-holder {
+	display: flex;
+	gap: 20px;
+	align-items: flex-start;
+	margin: 0;
+}
+.cvt-wrap #post-body .postbox-container {
+	min-width: 0;
+}
+.cvt-wrap #post-body #postbox-container-2 {
+	flex: 2;
+}
+.cvt-wrap #post-body #postbox-container-1 {
+	flex: 1;
+}
+.cvt-wrap .meta-box-sortables {
+	min-height: 60px;
+}
+.cvt-wrap .postbox {
+	background: var(--cvt-surface);
+	border: 1px solid var(--cvt-border);
+	border-radius: var(--cvt-radius);
+	box-shadow: var(--cvt-shadow);
+	margin-bottom: 20px;
+}
+.cvt-wrap .postbox-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid var(--cvt-border);
+	padding: 0 12px;
+	cursor: move;
+}
+.cvt-wrap .postbox-header .hndle {
+	font-size: 14px;
+	font-weight: 600;
+	padding: 10px 0;
+	margin: 0;
+	flex: 1;
+	border: none;
+	cursor: move;
+}
+.cvt-wrap .postbox .inside {
+	padding: 14px 16px;
+}
+.cvt-wrap .postbox .handlediv {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+}
+.cvt-wrap .sortable-placeholder {
+	border: 2px dashed var(--cvt-border);
+	border-radius: var(--cvt-radius);
+	background: #f9f9f9;
+	margin-bottom: 20px;
+	min-height: 60px;
+}
+.cvt-drop-hint {
+	border: 2px dashed var(--cvt-border);
+	border-radius: var(--cvt-radius);
+	padding: 24px;
+	text-align: center;
+	color: var(--cvt-muted);
+	font-size: 13px;
+}
+
+/* Postbox submit card — remove extra padding */
+#cvt-box-save .inside {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* ============================================================
+   WAITING LIST WIDGET (v1.7.0)
+   ============================================================ */
+.cvt-wl-summary-header {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-bottom: 4px;
+}
+.cvt-wl-stat {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.cvt-wl-stat strong {
+	font-size: 15px;
+	font-weight: 700;
+}
+.cvt-wl-mini-table th,
+.cvt-wl-mini-table td {
+	font-size: 12px;
+	padding: 6px 8px !important;
+}

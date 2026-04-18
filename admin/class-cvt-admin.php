@@ -90,11 +90,12 @@ class CVT_Admin {
 		);
 
 		wp_enqueue_media(); // WP media uploader.
+		wp_enqueue_script( 'postbox' ); // WordPress drag-and-drop widget system.
 
 		wp_enqueue_script(
 			'cvt-admin',
 			CVT_PLUGIN_URL . 'admin/js/cvt-admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'postbox' ),
 			CVT_VERSION,
 			true
 		);

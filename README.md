@@ -280,6 +280,7 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `category` | varchar(100) | |
 | `market_value` | decimal(12,2) | nullable, vendor estimate |
 | `selling_price` | decimal(12,2) | |
+| `commission_rate` | decimal(5,2) | nullable; NULL = use global rate |
 | `deal_type` | enum | consignment, agency |
 | `status` | enum | under_review, posted, inquiry_received, sold, closed, withdrawn |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
@@ -458,6 +459,18 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.4.0 — Per-item Commission Rate & Reverse Deal Transitions
+
+**New features**
+- **Per-item commission rate (P5):** Each item now carries its own `commission_rate` field (0–100%). Leave it blank to inherit the global default. When an item is marked Sold, the payout record uses the item's explicit rate if set, otherwise falls back to the global setting. Changing the rate on an existing item is logged in the activity trail. The live payout preview updates in real time as the commission rate field is edited.
+- **Reverse deal transitions (P7):** Admins (`cvt_manage_settings`) can now move items backwards through the pipeline. New reverse paths: `Sold → Inquiry Received`, `Sold → Posted`, `Sold → Withdrawn`, `Withdrawn → Under Review`. When reversing from Sold, any pending (unpaid) payout record is automatically voided and the deletion is logged for audit. Closed items (payout already paid) cannot be reversed. Reverse-deal buttons appear in a separate dashed section of the item detail stepper, visible only to admins.
+
+**Database changes**
+- `wp_cvt_items`: added `commission_rate decimal(5,2) DEFAULT NULL` (`NULL` = use global rate)
+- DB version bumped to 5; `maybe_upgrade()` applies the column to existing installs via `dbDelta`
+
+---
 
 ### 1.3.0 — Consignment Agreements, Price History, Waitlist Tracker & Listing Search Fix
 

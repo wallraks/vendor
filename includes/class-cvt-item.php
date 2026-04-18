@@ -94,6 +94,18 @@ class CVT_Item {
 			);
 		}
 
+		// Log commission rate changes when the effective rate actually shifts.
+		$global_rate     = CVT_Settings::commission_rate();
+		$old_eff_rate    = $item->commission_rate !== null ? (float) $item->commission_rate : $global_rate;
+		$new_eff_rate    = $update['commission_rate'] !== null ? (float) $update['commission_rate'] : $global_rate;
+		if ( abs( $old_eff_rate - $new_eff_rate ) > 0.001 ) {
+			CVT_Activity_Log::log(
+				'item', $id, 'commission_rate_changed',
+				array( 'rate' => $item->commission_rate ),
+				array( 'rate' => $update['commission_rate'] )
+			);
+		}
+
 		return true;
 	}
 
@@ -122,10 +134,15 @@ class CVT_Item {
 			return new WP_Error( 'invalid_status', __( 'Invalid status.', 'corido-vendor-tracker' ) );
 		}
 
-		// Validate transition unless admin is forcing it.
-		$valid = CVT_Settings::valid_transitions( $old_status );
+		// Validate transition unless admin is forcing it or it's an allowed reversal.
+		$valid   = CVT_Settings::valid_transitions( $old_status );
+		$reverse = CVT_Settings::reverse_transitions( $old_status );
+
 		if ( ! in_array( $new_status, $valid, true ) ) {
-			if ( ! $force || ! current_user_can( 'cvt_manage_settings' ) ) {
+			$is_admin_reverse = in_array( $new_status, $reverse, true )
+				&& current_user_can( 'cvt_manage_settings' );
+
+			if ( ! $is_admin_reverse && ( ! $force || ! current_user_can( 'cvt_manage_settings' ) ) ) {
 				/* translators: 1: old status label, 2: new status label */
 				return new WP_Error( 'invalid_transition', sprintf(
 					__( 'Cannot transition from %1$s to %2$s.', 'corido-vendor-tracker' ),
@@ -141,6 +158,11 @@ class CVT_Item {
 		}
 		if ( $new_status === 'withdrawn' && ! current_user_can( 'cvt_update_status_withdrawn' ) ) {
 			return new WP_Error( 'permission', __( 'You do not have permission to withdraw items.', 'corido-vendor-tracker' ) );
+		}
+
+		// Void any pending payout when reversing a sold item (no money moved yet).
+		if ( $old_status === 'sold' && in_array( $new_status, $reverse, true ) ) {
+			self::void_pending_payout( $id );
 		}
 
 		$extra = array();
@@ -396,6 +418,30 @@ class CVT_Item {
 	 * controller layer (admin/class-cvt-admin.php form handlers).
 	 */
 	/**
+	 * Delete any pending payout for an item when a sale is reversed before payment.
+	 * The deletion is logged in the item's activity trail for auditability.
+	 */
+	private static function void_pending_payout( $item_id ) {
+		global $wpdb;
+		$payout = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, payout_amount FROM {$wpdb->prefix}cvt_payouts
+			 WHERE item_id = %d AND status = 'pending' LIMIT 1",
+			absint( $item_id )
+		) );
+		if ( ! $payout ) {
+			return;
+		}
+		CVT_Activity_Log::log(
+			'item', absint( $item_id ), 'payout_voided',
+			array( 'payout_id' => $payout->id, 'payout_amount' => $payout->payout_amount ),
+			null,
+			'Payout voided — deal reversed before payment.'
+		);
+		$wpdb->delete( CVT_DB::payouts(), array( 'id' => $payout->id ), array( '%d' ) );
+		self::bust_cache();
+	}
+
+	/**
 	 * Validate that an attachment exists and is an allowed type (image or PDF).
 	 * Returns the attachment ID on success, null otherwise.
 	 */
@@ -423,20 +469,27 @@ class CVT_Item {
 		// Clamp selling price to a sane positive range.
 		$selling_price = max( 0, (float) ( $data['selling_price'] ?? 0 ) );
 
+		// commission_rate: NULL means "use global setting". Clamp to 0–100.
+		$commission_rate = null;
+		if ( isset( $data['commission_rate'] ) && $data['commission_rate'] !== '' ) {
+			$commission_rate = min( 100, max( 0, (float) $data['commission_rate'] ) );
+		}
+
 		return array(
-			'vendor_id'              => absint( $data['vendor_id'] ?? 0 ),
-			'title'                  => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
-			'description'            => sanitize_textarea_field( $data['description'] ?? '' ),
-			'category'               => substr( sanitize_text_field( $data['category'] ?? '' ), 0, $max['category'] ),
-			'market_value'           => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
-			'selling_price'          => $selling_price,
-			'deal_type'              => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
+			'vendor_id'               => absint( $data['vendor_id'] ?? 0 ),
+			'title'                   => substr( sanitize_text_field( $data['title'] ?? '' ), 0, $max['title'] ),
+			'description'             => sanitize_textarea_field( $data['description'] ?? '' ),
+			'category'                => substr( sanitize_text_field( $data['category'] ?? '' ), 0, $max['category'] ),
+			'market_value'            => ! empty( $data['market_value'] ) ? max( 0, (float) $data['market_value'] ) : null,
+			'selling_price'           => $selling_price,
+			'commission_rate'         => $commission_rate,
+			'deal_type'               => in_array( $data['deal_type'] ?? 'consignment', $allowed_types, true )
 				? $data['deal_type'] : 'consignment',
-			'assigned_agent_id'      => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
+			'assigned_agent_id'       => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
 			'agreement_attachment_id' => self::validate_agreement_attachment( $data['agreement_attachment_id'] ?? 0 ),
-			'listivo_listing_url'    => substr( esc_url_raw( $data['listivo_listing_url'] ?? '' ), 0, $max['listivo_listing_url'] ),
-			'date_received'          => $date_received,
-			'notes'                  => sanitize_textarea_field( $data['notes'] ?? '' ),
+			'listivo_listing_url'     => substr( esc_url_raw( $data['listivo_listing_url'] ?? '' ), 0, $max['listivo_listing_url'] ),
+			'date_received'           => $date_received,
+			'notes'                   => sanitize_textarea_field( $data['notes'] ?? '' ),
 		);
 	}
 }

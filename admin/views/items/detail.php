@@ -248,6 +248,44 @@ $action_btn_class = array(
 		</p>
 		<?php endif; ?>
 
+		<?php
+		// Reverse transitions — admins only, never from 'closed' (payout already paid).
+		$reverse_next    = CVT_Settings::reverse_transitions( $item->status );
+		$allowed_reverse = ( ! empty( $reverse_next ) && current_user_can( 'cvt_manage_settings' ) )
+			? $reverse_next : array();
+		?>
+		<?php if ( ! empty( $allowed_reverse ) ) : ?>
+		<div class="cvt-status-actions cvt-reverse-actions" style="margin-top:12px;border-top:1px dashed #ddd;padding-top:12px;">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="cvt-reverse-form">
+				<?php wp_nonce_field( 'cvt_update_status' ); ?>
+				<input type="hidden" name="action"     value="cvt_update_status">
+				<input type="hidden" name="item_id"    value="<?php echo esc_attr( $item_id ); ?>">
+				<input type="hidden" name="new_status" id="cvt-reverse-status-input" value="">
+
+				<div class="cvt-status-actions-inner">
+					<div class="cvt-status-actions-btns">
+						<span class="cvt-status-actions-label" style="color:#8c0000;">
+							↩ <?php esc_html_e( 'Reverse deal:', 'corido-vendor-tracker' ); ?>
+						</span>
+						<?php foreach ( $allowed_reverse as $rs ) :
+							$rs_info = CVT_Settings::status_info( $rs );
+							$btn_cls = $action_btn_class[ $rs ] ?? '';
+						?>
+						<button type="button" class="cvt-status-btn <?php echo esc_attr( $btn_cls ); ?> cvt-reverse-btn"
+							data-status="<?php echo esc_attr( $rs ); ?>">
+							<?php echo esc_html( $rs_info['label'] ); ?>
+						</button>
+						<?php endforeach; ?>
+					</div>
+					<div class="cvt-status-actions-note">
+						<input type="text" name="note" class="widefat"
+							placeholder="<?php esc_attr_e( 'Reason for reversal (logged for audit trail)…', 'corido-vendor-tracker' ); ?>">
+					</div>
+				</div>
+			</form>
+		</div>
+		<?php endif; ?>
+
 	</div><!-- .cvt-stepper-card -->
 
 	<!-- ================================================================
@@ -286,6 +324,20 @@ $action_btn_class = array(
 					<div class="cvt-info-row">
 						<span class="cvt-info-label"><?php esc_html_e( 'Selling Price', 'corido-vendor-tracker' ); ?></span>
 						<span class="cvt-info-value cvt-price"><?php echo esc_html( CVT_Settings::format_currency( $item->selling_price ) ); ?></span>
+					</div>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Commission Rate', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<?php
+							$eff_rate = ! is_null( $item->commission_rate )
+								? (float) $item->commission_rate
+								: CVT_Settings::commission_rate();
+							echo esc_html( $eff_rate . '%' );
+							if ( is_null( $item->commission_rate ) ) :
+							?>
+							<span class="cvt-muted"><?php esc_html_e( '(global default)', 'corido-vendor-tracker' ); ?></span>
+							<?php endif; ?>
+						</span>
 					</div>
 					<div class="cvt-info-row">
 						<span class="cvt-info-label"><?php esc_html_e( 'Assigned Agent', 'corido-vendor-tracker' ); ?></span>
@@ -522,17 +574,31 @@ $action_btn_class = array(
 </div>
 
 <script>
-// Wire each quick-action status button to set the hidden input before submit.
 (function() {
-	var form    = document.getElementById('cvt-status-form');
-	var input   = document.getElementById('cvt-new-status-input');
-	if ( ! form || ! input ) return;
-	form.addEventListener('click', function(e) {
-		var btn = e.target.closest('.cvt-status-btn');
-		if ( ! btn ) return;
-		e.preventDefault();
-		input.value = btn.dataset.status;
-		form.submit();
-	});
+	// Forward status buttons.
+	var form  = document.getElementById('cvt-status-form');
+	var input = document.getElementById('cvt-new-status-input');
+	if ( form && input ) {
+		form.addEventListener('click', function(e) {
+			var btn = e.target.closest('.cvt-status-btn');
+			if ( ! btn ) return;
+			e.preventDefault();
+			input.value = btn.dataset.status;
+			form.submit();
+		});
+	}
+
+	// Reverse-deal buttons (admin only).
+	var rForm  = document.getElementById('cvt-reverse-form');
+	var rInput = document.getElementById('cvt-reverse-status-input');
+	if ( rForm && rInput ) {
+		rForm.addEventListener('click', function(e) {
+			var btn = e.target.closest('.cvt-reverse-btn');
+			if ( ! btn ) return;
+			e.preventDefault();
+			rInput.value = btn.dataset.status;
+			rForm.submit();
+		});
+	}
 })();
 </script>

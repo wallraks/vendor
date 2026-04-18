@@ -229,6 +229,22 @@ class CVT_Settings {
 		return $map[ $from ] ?? array();
 	}
 
+	/**
+	 * Reverse transitions allowed only for users with cvt_manage_settings.
+	 * Used when a deal falls through (sold → back on market) or a vendor
+	 * changes their mind after withdrawal.
+	 *
+	 * Reversing from 'sold' automatically voids any pending payout record.
+	 * Reversing from 'closed' is never allowed — payout was already paid out.
+	 */
+	public static function reverse_transitions( $from ) {
+		$map = array(
+			'sold'      => array( 'inquiry_received', 'posted', 'withdrawn' ),
+			'withdrawn' => array( 'under_review' ),
+		);
+		return $map[ $from ] ?? array();
+	}
+
 	/** Format a number as KES currency. */
 	public static function format_currency( $amount ) {
 		return 'KES ' . number_format( (float) $amount, 2 );

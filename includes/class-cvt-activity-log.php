@@ -110,6 +110,17 @@ class CVT_Activity_Log {
 				$to   = esc_html( CVT_Settings::format_currency( $new['price'] ?? 0 ) );
 				return "$actor changed price from <strong>$from</strong> to <strong>$to</strong>.";
 
+			case 'commission_rate_changed':
+				$global   = CVT_Settings::commission_rate();
+				$from_raw = $old['rate'] ?? null;
+				$to_raw   = $new['rate'] ?? null;
+				$from     = esc_html( ( $from_raw !== null ? (float) $from_raw : $global ) . '%' );
+				$to       = esc_html( ( $to_raw   !== null ? (float) $to_raw   : $global ) . '%' );
+				return "$actor changed commission rate from <strong>$from</strong> to <strong>$to</strong>.";
+
+			case 'payout_voided':
+				return "$actor voided the pending payout — deal reversed before payment.";
+
 			case 'payout_created':
 				return "$actor — payout record auto-created on sale.";
 

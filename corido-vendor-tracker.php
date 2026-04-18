@@ -3,7 +3,7 @@
  * Plugin Name:       Corido Vendor Tracker
  * Plugin URI:        https://corido.co.ke
  * Description:       Internal vendor and item tracking system for Corido Marketplace — manage vendors, items, deal statuses, commissions, and payouts from WordPress admin.
- * Version:           1.3.0
+ * Version:           1.4.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Corido Marketplace
@@ -14,8 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CVT_VERSION',     '1.3.0' );
-define( 'CVT_DB_VERSION',  '4' );
+define( 'CVT_VERSION',     '1.4.0' );
+define( 'CVT_DB_VERSION',  '5' );
 define( 'CVT_PLUGIN_FILE', __FILE__ );
 define( 'CVT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'CVT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );

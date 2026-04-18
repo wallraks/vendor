@@ -136,7 +136,13 @@ class CVT_Ajax {
 		}
 
 		$price = max( 0, (float) ( $_GET['price'] ?? 0 ) );
-		$rate  = CVT_Settings::commission_rate();
+
+		// Accept an optional per-item override; fall back to the global setting.
+		$custom = $_GET['commission_rate'] ?? '';
+		$rate   = ( $custom !== '' )
+			? min( 100, max( 0, (float) $custom ) )
+			: CVT_Settings::commission_rate();
+
 		$calcs = CVT_Payout::calculate( $price, $rate );
 
 		wp_send_json_success( array(

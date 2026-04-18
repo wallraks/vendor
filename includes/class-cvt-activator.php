@@ -82,6 +82,7 @@ class CVT_Activator {
 			category         varchar(100) NOT NULL DEFAULT '',
 			market_value     decimal(12,2) DEFAULT NULL,
 			selling_price    decimal(12,2) NOT NULL DEFAULT 0.00,
+			commission_rate  decimal(5,2) DEFAULT NULL,
 			deal_type        enum('consignment','agency') NOT NULL DEFAULT 'consignment',
 			status           enum('under_review','posted','inquiry_received','sold','closed','withdrawn') NOT NULL DEFAULT 'under_review',
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,

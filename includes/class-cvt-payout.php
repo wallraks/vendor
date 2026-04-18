@@ -23,9 +23,12 @@ class CVT_Payout {
 			return new WP_Error( 'not_found', __( 'Item not found.', 'corido-vendor-tracker' ) );
 		}
 
-		// Snapshot the commission rate at time of sale.
-		$rate   = CVT_Settings::commission_rate();
-		$calcs  = self::calculate( (float) $item->selling_price, $rate );
+		// Use item-level commission rate when set, otherwise fall back to global setting.
+		// Either way the rate is snapshotted here for auditability.
+		$rate  = ! is_null( $item->commission_rate )
+			? (float) $item->commission_rate
+			: CVT_Settings::commission_rate();
+		$calcs = self::calculate( (float) $item->selling_price, $rate );
 
 		$wpdb->insert(
 			CVT_DB::payouts(),

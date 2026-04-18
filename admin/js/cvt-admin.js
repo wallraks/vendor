@@ -268,30 +268,39 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// 3. Live Payout Preview — tied to #selling_price (both modes)
+	// 3. Live Payout Preview — tied to #selling_price and #commission_rate
 	// -------------------------------------------------------------------------
-	var $sellingPrice = $('#selling_price');
+	var $sellingPrice   = $('#selling_price');
+	var $commissionRate = $('#commission_rate');
+
+	function cvtUpdatePayoutPreview() {
+		var price = parseFloat($sellingPrice.val()) || 0;
+		if (price <= 0) {
+			$('#preview-commission').text('KES 0.00');
+			$('#preview-payout').text('KES 0.00');
+			return;
+		}
+		var rateVal = $commissionRate.val(); // '' = use global on the server
+		$.ajax({
+			url:    CVT.ajax_url,
+			method: 'GET',
+			data:   { action: 'cvt_payout_preview', nonce: CVT.nonce, price: price, commission_rate: rateVal },
+			success: function (res) {
+				if (res.success) {
+					$('#preview-commission').text(res.data.formatted.commission);
+					$('#preview-payout').text(res.data.formatted.payout);
+					$('#preview-rate').text(res.data.commission_rate);
+				}
+			}
+		});
+	}
 
 	if ($sellingPrice.length) {
-		$sellingPrice.on('input change', function () {
-			var price = parseFloat($(this).val()) || 0;
-			if (price <= 0) {
-				$('#preview-commission').text('KES 0.00');
-				$('#preview-payout').text('KES 0.00');
-				return;
-			}
-			$.ajax({
-				url:    CVT.ajax_url,
-				method: 'GET',
-				data:   { action: 'cvt_payout_preview', nonce: CVT.nonce, price: price },
-				success: function (res) {
-					if (res.success) {
-						$('#preview-commission').text(res.data.formatted.commission);
-						$('#preview-payout').text(res.data.formatted.payout);
-					}
-				}
-			});
-		}).trigger('change');
+		$sellingPrice.on('input change', cvtUpdatePayoutPreview);
+		cvtUpdatePayoutPreview();
+	}
+	if ($commissionRate.length) {
+		$commissionRate.on('input change', cvtUpdatePayoutPreview);
 	}
 
 	// -------------------------------------------------------------------------

@@ -10,6 +10,7 @@ class CVT_Admin {
 	public function __construct() {
 		add_action( 'admin_menu',            array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_init',            array( $this, 'clean_admin_for_agents' ) );
 
 		// Form submission handlers.
 		add_action( 'admin_post_cvt_save_vendor',   array( $this, 'handle_save_vendor' ) );
@@ -479,6 +480,23 @@ class CVT_Admin {
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Strip all unrelated admin notices for CVT agents who are not full WP admins.
+	 * They don't need theme/plugin update banners, TGMPA warnings, etc.
+	 * CVT's own notices are rendered inline in each view, not via this hook.
+	 */
+	public function clean_admin_for_agents() {
+		if ( current_user_can( 'manage_options' ) ) {
+			return; // Full WP admins see everything as normal.
+		}
+		if ( ! current_user_can( 'cvt_add_vendors' ) ) {
+			return; // Not a CVT user — not our concern.
+		}
+		remove_all_actions( 'admin_notices' );
+		remove_all_actions( 'all_admin_notices' );
+		remove_all_actions( 'network_admin_notices' );
+	}
 
 	private function require_cap( $cap ) {
 		if ( ! current_user_can( $cap ) ) {

@@ -3,7 +3,7 @@
  * Plugin Name:       CR Business Suite
  * Plugin URI:        https://corido.co.ke
  * Description:       Internal business management suite for Corido Marketplace — manage vendors, items, deal tracking, commissions, payouts, and waiting lists from WordPress admin.
- * Version:           1.7.0
+ * Version:           1.7.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Corido Marketplace
@@ -14,8 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CVT_VERSION',     '1.7.0' );
-define( 'CVT_DB_VERSION',  '6' );
+define( 'CVT_VERSION',     '1.7.1' );
+define( 'CVT_DB_VERSION',  '7' );
 define( 'CVT_PLUGIN_FILE', __FILE__ );
 define( 'CVT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'CVT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );

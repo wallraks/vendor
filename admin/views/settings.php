@@ -271,7 +271,6 @@ $source_info = CVT_Settings::categories_source_info();
 				<input type="hidden" name="cvt_roles_submitted" value="1">
 
 				<?php
-				<?php
 				$all_roles      = wp_roles()->roles;
 				$selected_roles = CVT_Settings::get_assignable_roles();
 				// Native roles have fixed capability tiers — label them accordingly.

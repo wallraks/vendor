@@ -10,6 +10,7 @@ class CVT_Activator {
 		self::create_tables();
 		update_option( 'cvt_db_version', CVT_DB_VERSION );
 		CVT_Roles::register();
+		CVT_Roles::sync_external_roles();
 		// Set defaults only on first activation.
 		if ( false === get_option( 'cvt_commission_rate' ) ) {
 			update_option( 'cvt_commission_rate', '12' );
@@ -45,6 +46,7 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_items MODIFY deal_type enum('consignment','agency','listing') NOT NULL DEFAULT 'consignment'" );
 		}
 
+		CVT_Roles::sync_external_roles();
 		update_option( 'cvt_db_version', CVT_DB_VERSION );
 	}
 

@@ -95,7 +95,49 @@ class CVT_Roles {
 	}
 
 	/**
-	 * Remove CVT roles. Called on plugin uninstall.
+	 * Sync CVT capabilities to any external (non-native) WordPress roles that
+	 * have been added to the allowed-roles list in Settings.
+	 *
+	 * - Roles IN the list  → granted junior-agent capabilities so they can
+	 *   access the Business Suite menus and be assigned as agents.
+	 * - Roles NOT in list  → any previously-granted CVT caps are stripped.
+	 *
+	 * Call this on activation, upgrade, and whenever settings are saved.
+	 * Native CVT roles and 'administrator' are never touched here.
+	 */
+	public static function sync_external_roles() {
+		$map    = self::capability_map();
+		$native = array( 'administrator', 'cvt_admin', 'cvt_senior_agent', 'cvt_junior_agent' );
+
+		// Build the junior-agent capability set (baseline access tier).
+		$junior_caps = array();
+		foreach ( $map as $cap => $allowed_tiers ) {
+			if ( in_array( 'junior', $allowed_tiers, true ) ) {
+				$junior_caps[] = $cap;
+			}
+		}
+
+		$allowed = CVT_Settings::get_assignable_roles();
+
+		foreach ( wp_roles()->role_objects as $slug => $role ) {
+			if ( in_array( $slug, $native, true ) ) {
+				continue; // Handled separately by register().
+			}
+
+			if ( in_array( $slug, $allowed, true ) ) {
+				foreach ( $junior_caps as $cap ) {
+					$role->add_cap( $cap );
+				}
+			} else {
+				// Strip any CVT caps this role may have had.
+				foreach ( array_keys( $map ) as $cap ) {
+					$role->remove_cap( $cap );
+				}
+			}
+		}
+	}
+
+	/**
 	 */
 	public static function remove() {
 		remove_role( 'cvt_admin' );

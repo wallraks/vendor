@@ -301,6 +301,8 @@ class CVT_Admin {
 			$this->redirect_with_error( 'cvt-settings', $result->get_error_message() );
 			return;
 		}
+		// Re-sync CVT caps to external roles after the new role list is saved.
+		CVT_Roles::sync_external_roles();
 		$this->redirect_with_notice( admin_url( 'admin.php?page=cvt-settings' ),
 			__( 'Settings saved.', 'corido-vendor-tracker' ) );
 	}

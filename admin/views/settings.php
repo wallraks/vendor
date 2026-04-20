@@ -258,9 +258,12 @@ $source_info = CVT_Settings::categories_source_info();
 
 		<!-- Agent Role Configuration -->
 		<div class="cvt-card">
-			<h2 class="cvt-card-title"><?php esc_html_e( 'Agent Role Configuration', 'corido-vendor-tracker' ); ?></h2>
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Plugin Access & Agent Roles', 'corido-vendor-tracker' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'Choose which WordPress roles appear in the "Assigned Agent" dropdown when adding or editing vendors. At least one role must be selected.', 'corido-vendor-tracker' ); ?>
+				<?php esc_html_e( 'Choose which WordPress roles can access the Business Suite. Users with a checked role will see the plugin menus in wp-admin and will appear in the Assigned Agent dropdown. Roles you do not check will have no access regardless of their WordPress permissions. At least one role must be selected.', 'corido-vendor-tracker' ); ?>
+			</p>
+			<p class="description" style="margin-top:6px;">
+				<?php esc_html_e( 'After saving, go to Users → All Users → Edit a user to assign them one of these roles.', 'corido-vendor-tracker' ); ?>
 			</p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
@@ -268,28 +271,49 @@ $source_info = CVT_Settings::categories_source_info();
 				<input type="hidden" name="cvt_roles_submitted" value="1">
 
 				<?php
+				<?php
 				$all_roles      = wp_roles()->roles;
 				$selected_roles = CVT_Settings::get_assignable_roles();
+				// Native roles have fixed capability tiers — label them accordingly.
+				$native_tiers = array(
+					'administrator'    => __( 'Full admin', 'corido-vendor-tracker' ),
+					'cvt_admin'        => __( 'CR Admin', 'corido-vendor-tracker' ),
+					'cvt_senior_agent' => __( 'CR Senior Agent', 'corido-vendor-tracker' ),
+					'cvt_junior_agent' => __( 'CR Junior Agent', 'corido-vendor-tracker' ),
+				);
 				ksort( $all_roles );
 				?>
 				<div class="cvt-field" style="margin-top:12px;">
 					<fieldset>
-						<legend class="screen-reader-text"><?php esc_html_e( 'Assignable roles', 'corido-vendor-tracker' ); ?></legend>
-						<?php foreach ( $all_roles as $role_slug => $role_data ) : ?>
-						<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+						<legend class="screen-reader-text"><?php esc_html_e( 'Plugin access roles', 'corido-vendor-tracker' ); ?></legend>
+						<?php foreach ( $all_roles as $role_slug => $role_data ) :
+							$is_selected = in_array( $role_slug, $selected_roles, true );
+							$is_native   = isset( $native_tiers[ $role_slug ] );
+							$tier_label  = $is_native
+								? $native_tiers[ $role_slug ]
+								: __( 'Agent access', 'corido-vendor-tracker' );
+						?>
+						<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
 							<input type="checkbox"
 								name="cvt_assignable_roles[]"
 								value="<?php echo esc_attr( $role_slug ); ?>"
-								<?php checked( in_array( $role_slug, $selected_roles, true ) ); ?>>
+								<?php checked( $is_selected ); ?>>
 							<strong><?php echo esc_html( translate_user_role( $role_data['name'] ) ); ?></strong>
 							<code style="font-size:11px;color:#666;"><?php echo esc_html( $role_slug ); ?></code>
+							<?php if ( $is_selected ) : ?>
+							<span class="cvt-badge cvt-badge--sold" style="font-size:10px;padding:1px 6px;">
+								<?php echo esc_html( $tier_label ); ?>
+							</span>
+							<?php else : ?>
+							<span style="font-size:11px;color:#999;"><?php esc_html_e( 'No access', 'corido-vendor-tracker' ); ?></span>
+							<?php endif; ?>
 						</label>
 						<?php endforeach; ?>
 					</fieldset>
 				</div>
 
 				<button type="submit" class="button button-primary">
-					<?php esc_html_e( 'Save Role Configuration', 'corido-vendor-tracker' ); ?>
+					<?php esc_html_e( 'Save & Apply Access', 'corido-vendor-tracker' ); ?>
 				</button>
 			</form>
 		</div>

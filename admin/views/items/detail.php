@@ -153,6 +153,13 @@ $action_btn_class = array(
 	<!-- ================================================================
 	     STATUS STEPPER — full-width, shown above the detail grid
 	     ================================================================ -->
+	<?php if ( ! empty( $allowed_next ) && $item->status !== 'closed' ) : ?>
+	<form id="cvt-status-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:none;">
+		<?php wp_nonce_field( 'cvt_update_status' ); ?>
+		<input type="hidden" name="action"  value="cvt_update_status">
+		<input type="hidden" name="item_id" value="<?php echo esc_attr( $item_id ); ?>">
+	</form>
+	<?php endif; ?>
 	<div class="cvt-card cvt-stepper-card">
 
 		<?php if ( $item->status === 'withdrawn' ) : ?>
@@ -181,21 +188,30 @@ $action_btn_class = array(
 				$is_completed = $visited && ( $current_index !== false ) && ( $i < $current_index );
 				$is_future    = ! $visited && ! $is_active;
 
+				$is_next = in_array( $stage, $allowed_next, true );
 				if ( $is_completed )  $step_class = 'cvt-step--completed';
 				elseif ( $is_active ) $step_class = 'cvt-step--active';
+				elseif ( $is_next )   $step_class = 'cvt-step--next';
 				elseif ( $visited )   $step_class = 'cvt-step--visited'; // visited but not current linear position (e.g. went back)
 				else                  $step_class = 'cvt-step--future';
 			?>
 			<div class="cvt-step <?php echo esc_attr( $step_class ); ?>">
+			<?php if ( $is_next ) : ?>
+				<button type="submit" form="cvt-status-form" name="new_status"
+					value="<?php echo esc_attr( $stage ); ?>"
+					class="cvt-step-indicator"
+					title="<?php echo esc_attr( sprintf( __( 'Move to: %s', 'corido-vendor-tracker' ), $info['label'] ) ); ?>">
+					<span class="cvt-step-number"><?php echo esc_html( $i + 1 ); ?></span>
+				</button>
+			<?php else : ?>
 				<div class="cvt-step-indicator">
 					<?php if ( $is_completed ) : ?>
 					<span class="dashicons dashicons-yes-alt"></span>
-					<?php elseif ( $is_active ) : ?>
-					<span class="cvt-step-number"><?php echo esc_html( $i + 1 ); ?></span>
 					<?php else : ?>
 					<span class="cvt-step-number"><?php echo esc_html( $i + 1 ); ?></span>
 					<?php endif; ?>
 				</div>
+			<?php endif; ?>
 				<div class="cvt-step-body">
 					<div class="cvt-step-label"><?php echo esc_html( $info['label'] ); ?></div>
 					<?php if ( $visited && isset( $status_dates[ $stage ] ) ) : ?>
@@ -213,36 +229,19 @@ $action_btn_class = array(
 			<?php endforeach; ?>
 		</div><!-- .cvt-stepper -->
 
-		<!-- Quick status action buttons -->
-		<?php if ( ! empty( $allowed_next ) && $item->status !== 'closed' ) : ?>
-		<div class="cvt-status-actions">
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="cvt-status-form">
-				<?php wp_nonce_field( 'cvt_update_status' ); ?>
-				<input type="hidden" name="action"   value="cvt_update_status">
-				<input type="hidden" name="item_id"  value="<?php echo esc_attr( $item_id ); ?>">
-				<input type="hidden" name="new_status" id="cvt-new-status-input" value="">
-
-				<div class="cvt-status-actions-inner">
-					<div class="cvt-status-actions-btns">
-						<span class="cvt-status-actions-label"><?php esc_html_e( 'Move to:', 'corido-vendor-tracker' ); ?></span>
-						<?php foreach ( $allowed_next as $ns ) :
-							$ns_info = CVT_Settings::status_info( $ns );
-							$btn_cls = $action_btn_class[ $ns ] ?? '';
-						?>
-						<button type="submit" class="cvt-status-btn <?php echo esc_attr( $btn_cls ); ?>"
-							data-status="<?php echo esc_attr( $ns ); ?>">
-							<?php echo esc_html( $ns_info['label'] ); ?>
-						</button>
-						<?php endforeach; ?>
-					</div>
-					<div class="cvt-status-actions-note">
-						<input type="text" name="note" class="widefat"
-							placeholder="<?php esc_attr_e( 'Add a note to this update (optional)…', 'corido-vendor-tracker' ); ?>">
-					</div>
-				</div>
-			</form>
+		<?php
+		// 'withdrawn' is a side-branch (not in the pipeline stepper), so show it as a separate button.
+		$withdraw_allowed = in_array( 'withdrawn', $allowed_next, true );
+		?>
+		<?php if ( $withdraw_allowed ) : ?>
+		<div class="cvt-stepper-withdraw">
+			<button type="submit" form="cvt-status-form" name="new_status" value="withdrawn"
+				class="button cvt-status-btn cvt-status-btn--withdrawn">
+				<?php esc_html_e( 'Withdraw Item', 'corido-vendor-tracker' ); ?>
+			</button>
 		</div>
-		<?php elseif ( $item->status === 'closed' ) : ?>
+		<?php endif; ?>
+		<?php if ( $item->status === 'closed' ) : ?>
 		<p class="cvt-stepper-terminal">
 			<?php esc_html_e( 'This item is closed. All done.', 'corido-vendor-tracker' ); ?>
 		</p>
@@ -409,23 +408,6 @@ $action_btn_class = array(
 				</div>
 			</div>
 
-			<!-- Images -->
-			<?php if ( ! empty( $images ) ) : ?>
-			<div class="cvt-card">
-				<h2 class="cvt-card-title"><?php esc_html_e( 'Images', 'corido-vendor-tracker' ); ?></h2>
-				<div class="cvt-image-grid">
-					<?php foreach ( $images as $img ) :
-						$url  = wp_get_attachment_image_url( $img->attachment_id, 'medium' );
-						$full = wp_get_attachment_url( $img->attachment_id );
-					?>
-					<a href="<?php echo esc_url( $full ); ?>" target="_blank" class="cvt-image-thumb cvt-image-thumb--view">
-						<img src="<?php echo esc_url( $url ); ?>" alt="">
-					</a>
-					<?php endforeach; ?>
-				</div>
-			</div>
-			<?php endif; ?>
-
 			<!-- Payout card -->
 			<?php if ( $payout ) : ?>
 			<div class="cvt-card" id="cvt-payout-card">
@@ -576,6 +558,23 @@ $action_btn_class = array(
 				</div>
 			</div>
 
+			<!-- Images -->
+			<?php if ( ! empty( $images ) ) : ?>
+			<div class="cvt-card">
+				<h2 class="cvt-card-title"><?php esc_html_e( 'Images', 'corido-vendor-tracker' ); ?></h2>
+				<div class="cvt-image-grid">
+					<?php foreach ( $images as $img ) :
+						$url  = wp_get_attachment_image_url( $img->attachment_id, 'medium' );
+						$full = wp_get_attachment_url( $img->attachment_id );
+					?>
+					<a href="<?php echo esc_url( $full ); ?>" target="_blank" class="cvt-image-thumb cvt-image-thumb--view">
+						<img src="<?php echo esc_url( $url ); ?>" alt="">
+					</a>
+					<?php endforeach; ?>
+				</div>
+			</div>
+			<?php endif; ?>
+
 			<?php if ( $payout && $payout->status === 'pending' && current_user_can( 'cvt_mark_payouts' ) ) : ?>
 			<div class="cvt-card cvt-card--highlight">
 				<h2 class="cvt-card-title"><?php esc_html_e( 'Payout Due', 'corido-vendor-tracker' ); ?></h2>
@@ -592,19 +591,6 @@ $action_btn_class = array(
 
 <script>
 (function() {
-	// Forward status buttons.
-	var form  = document.getElementById('cvt-status-form');
-	var input = document.getElementById('cvt-new-status-input');
-	if ( form && input ) {
-		form.addEventListener('click', function(e) {
-			var btn = e.target.closest('.cvt-status-btn');
-			if ( ! btn ) return;
-			e.preventDefault();
-			input.value = btn.dataset.status;
-			form.submit();
-		});
-	}
-
 	// Reverse-deal buttons (admin only).
 	var rForm  = document.getElementById('cvt-reverse-form');
 	var rInput = document.getElementById('cvt-reverse-status-input');

@@ -900,6 +900,26 @@
 	border: 2px solid var(--cvt-border);
 }
 
+/* Next valid step: clickable button indicator */
+.cvt-step--next button.cvt-step-indicator,
+button.cvt-step-indicator {
+	-webkit-appearance: none;
+	appearance: none;
+	padding: 0;
+	font: inherit;
+	cursor: pointer;
+	background: #e8f5e9;
+	color: var(--cvt-green);
+	border: 2px solid var(--cvt-green);
+	transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.cvt-step--next button.cvt-step-indicator:hover,
+button.cvt-step-indicator:hover {
+	background: var(--cvt-green);
+	color: #fff;
+	box-shadow: 0 0 0 3px rgba(46,125,50,.25);
+}
+
 /* Step label and date */
 .cvt-step-body {
 	text-align: center;
@@ -937,6 +957,13 @@
 }
 .cvt-step-connector--done {
 	background: var(--cvt-green);
+}
+
+/* Withdraw button below the stepper */
+.cvt-stepper-withdraw {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px dashed var(--cvt-border);
 }
 
 /* "All done" message when item is closed */

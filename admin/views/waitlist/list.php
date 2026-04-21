@@ -21,9 +21,8 @@ $result = CVT_Waitlist::get_all( array(
 	'paged'    => $paged,
 ) );
 
-// Tag counts across ALL open entries (unaffected by current filters).
-$tag_counts = CVT_Waitlist::get_tag_counts( 'open' );
-
+// Tag counts across ALL open entries (not affected by current filters).
+$tag_counts  = CVT_Waitlist::get_tag_counts( 'open' );
 $entries     = $result['items'];
 $total       = $result['total'];
 $total_pages = ceil( $total / 20 );
@@ -47,219 +46,207 @@ $status_labels = array(
 
 	<?php CVT_Admin::render_notice(); ?>
 
-	<div class="cvt-wl-layout">
+	<!-- Filters -->
+	<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="cvt-filter-bar">
+		<input type="hidden" name="page" value="cvt-waitlist">
+		<input type="text" name="s" value="<?php echo esc_attr( $filter_search ); ?>"
+			placeholder="<?php esc_attr_e( 'Search name, phone, description…', 'corido-vendor-tracker' ); ?>"
+			class="cvt-filter-search">
 
-		<!-- ============================================================
-		     MAIN: filters + entries table
-		     ============================================================ -->
-		<div class="cvt-wl-main">
+		<select name="status">
+			<option value=""><?php esc_html_e( 'All statuses', 'corido-vendor-tracker' ); ?></option>
+			<?php foreach ( $status_labels as $slug => $info ) : ?>
+			<option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $filter_status, $slug ); ?>>
+				<?php echo esc_html( $info['label'] ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
 
-			<!-- Filters -->
-			<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="cvt-filter-bar">
-				<input type="hidden" name="page" value="cvt-waitlist">
-				<input type="text" name="s" value="<?php echo esc_attr( $filter_search ); ?>"
-					placeholder="<?php esc_attr_e( 'Search name, phone, description…', 'corido-vendor-tracker' ); ?>"
-					class="cvt-filter-search">
+		<?php if ( $categories ) : ?>
+		<select name="category">
+			<option value=""><?php esc_html_e( 'All categories', 'corido-vendor-tracker' ); ?></option>
+			<?php foreach ( $categories as $cat ) : ?>
+			<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $filter_category, $cat ); ?>>
+				<?php echo esc_html( $cat ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
+		<?php endif; ?>
 
-				<select name="status">
-					<option value=""><?php esc_html_e( 'All statuses', 'corido-vendor-tracker' ); ?></option>
-					<?php foreach ( $status_labels as $slug => $info ) : ?>
-					<option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $filter_status, $slug ); ?>>
-						<?php echo esc_html( $info['label'] ); ?>
-					</option>
-					<?php endforeach; ?>
-				</select>
+		<?php if ( $agents ) : ?>
+		<select name="agent_id">
+			<option value=""><?php esc_html_e( 'All agents', 'corido-vendor-tracker' ); ?></option>
+			<?php foreach ( $agents as $agent ) : ?>
+			<option value="<?php echo esc_attr( $agent->ID ); ?>" <?php selected( $filter_agent, $agent->ID ); ?>>
+				<?php echo esc_html( $agent->display_name ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
+		<?php endif; ?>
 
-				<?php if ( $categories ) : ?>
-				<select name="category">
-					<option value=""><?php esc_html_e( 'All categories', 'corido-vendor-tracker' ); ?></option>
-					<?php foreach ( $categories as $cat ) : ?>
-					<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $filter_category, $cat ); ?>>
-						<?php echo esc_html( $cat ); ?>
-					</option>
-					<?php endforeach; ?>
-				</select>
-				<?php endif; ?>
+		<?php if ( $filter_tag ) : ?>
+		<input type="hidden" name="tag" value="<?php echo esc_attr( $filter_tag ); ?>">
+		<?php endif; ?>
+		<button type="submit" class="button"><?php esc_html_e( 'Filter', 'corido-vendor-tracker' ); ?></button>
+		<?php if ( $filter_status || $filter_category || $filter_search || $filter_agent || $filter_tag ) : ?>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?></a>
+		<?php endif; ?>
+	</form>
 
-				<?php if ( $agents ) : ?>
-				<select name="agent_id">
-					<option value=""><?php esc_html_e( 'All agents', 'corido-vendor-tracker' ); ?></option>
-					<?php foreach ( $agents as $agent ) : ?>
-					<option value="<?php echo esc_attr( $agent->ID ); ?>" <?php selected( $filter_agent, $agent->ID ); ?>>
-						<?php echo esc_html( $agent->display_name ); ?>
-					</option>
-					<?php endforeach; ?>
-				</select>
-				<?php endif; ?>
+	<?php if ( $filter_tag ) : ?>
+	<div class="cvt-active-tag-notice">
+		<?php echo esc_html( sprintf( __( 'Filtered by tag: "%s"', 'corido-vendor-tracker' ), $filter_tag ) ); ?>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="cvt-tag-clear">
+			<?php esc_html_e( '× remove', 'corido-vendor-tracker' ); ?>
+		</a>
+	</div>
+	<?php endif; ?>
 
-				<?php if ( $filter_tag ) : ?>
-				<input type="hidden" name="tag" value="<?php echo esc_attr( $filter_tag ); ?>">
-				<?php endif; ?>
-				<button type="submit" class="button"><?php esc_html_e( 'Filter', 'corido-vendor-tracker' ); ?></button>
-				<?php if ( $filter_status || $filter_category || $filter_search || $filter_agent || $filter_tag ) : ?>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?></a>
-				<?php endif; ?>
-			</form>
-
-			<?php if ( $filter_tag ) : ?>
-			<div class="cvt-active-tag-notice">
-				<?php echo esc_html( sprintf( __( 'Filtered by tag: "%s"', 'corido-vendor-tracker' ), $filter_tag ) ); ?>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="cvt-tag-clear">
-					<?php esc_html_e( '× remove', 'corido-vendor-tracker' ); ?>
-				</a>
-			</div>
-			<?php endif; ?>
-
-			<div class="cvt-card" style="margin-top:16px;">
-				<?php if ( empty( $entries ) ) : ?>
-				<p class="cvt-empty"><?php esc_html_e( 'No waiting list entries found.', 'corido-vendor-tracker' ); ?></p>
-				<?php else : ?>
-				<table class="cvt-table widefat striped">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Client', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Looking For', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Budget (KES)', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Qty', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Agent', 'corido-vendor-tracker' ); ?></th>
-							<th><?php esc_html_e( 'Added', 'corido-vendor-tracker' ); ?></th>
-							<th></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $entries as $entry ) :
-							$si    = $status_labels[ $entry->status ] ?? array( 'label' => $entry->status, 'class' => '' );
-							$budget = '';
-							if ( $entry->budget_min && $entry->budget_max ) {
-								$budget = CVT_Settings::format_currency( $entry->budget_min ) . ' – ' . CVT_Settings::format_currency( $entry->budget_max );
-							} elseif ( $entry->budget_max ) {
-								$budget = 'up to ' . CVT_Settings::format_currency( $entry->budget_max );
-							} elseif ( $entry->budget_min ) {
-								$budget = 'from ' . CVT_Settings::format_currency( $entry->budget_min );
-							}
-							$entry_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
-						?>
-						<tr>
-							<td><strong><?php echo esc_html( $entry->client_name ); ?></strong></td>
-							<td>
-								<a href="tel:<?php echo esc_attr( $entry->phone ); ?>"><?php echo esc_html( $entry->phone ); ?></a>
-							</td>
-							<td>
-								<?php if ( $entry->category ) : ?>
-								<span class="cvt-role-chip"><?php echo esc_html( $entry->category ); ?></span>
-								<?php endif; ?>
-								<?php foreach ( $entry_tags as $tag ) : ?>
-								<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) ) ); ?>"
-									class="cvt-tag-pill cvt-tag-pill--inline<?php echo ( $filter_tag === $tag ) ? ' cvt-tag-pill--active' : ''; ?>">
-									<?php echo esc_html( $tag ); ?>
-								</a>
-								<?php endforeach; ?>
-								<?php echo esc_html( wp_trim_words( $entry->description ?? '', 10, '…' ) ); ?>
-							</td>
-							<td><?php echo $budget ? esc_html( $budget ) : '—'; ?></td>
-							<td><?php echo esc_html( $entry->quantity ); ?></td>
-							<td>
-								<span class="cvt-badge <?php echo esc_attr( $si['class'] ); ?>">
-									<?php echo esc_html( $si['label'] ); ?>
-								</span>
-								<?php if ( $entry->matched_item_id ) : ?>
-								<br><a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-items&action=view&id=' . $entry->matched_item_id ) ); ?>" class="cvt-muted" style="font-size:11px;">
-									<?php esc_html_e( 'View matched item', 'corido-vendor-tracker' ); ?>
-								</a>
-								<?php endif; ?>
-							</td>
-							<td><?php echo esc_html( $entry->agent_name ?: '—' ); ?></td>
-							<td><?php echo esc_html( date_i18n( 'd M Y', strtotime( $entry->created_at ) ) ); ?></td>
-							<td class="cvt-row-actions">
-								<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&action=edit&id=' . $entry->id ) ); ?>" class="button button-small">
-									<?php esc_html_e( 'Edit', 'corido-vendor-tracker' ); ?>
-								</a>
-								<a href="<?php echo esc_url( wp_nonce_url(
-									admin_url( 'admin-post.php?action=cvt_delete_waitlist&id=' . $entry->id ),
-									'cvt_delete_waitlist'
-								) ); ?>" class="button button-small cvt-delete-link">
-									<?php esc_html_e( 'Delete', 'corido-vendor-tracker' ); ?>
-								</a>
-							</td>
-						</tr>
+	<!-- Entries table -->
+	<div class="cvt-card" style="margin-top:16px;">
+		<?php if ( empty( $entries ) ) : ?>
+		<p class="cvt-empty"><?php esc_html_e( 'No waiting list entries found.', 'corido-vendor-tracker' ); ?></p>
+		<?php else : ?>
+		<table class="cvt-table widefat striped">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Client', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Phone', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Looking For', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Budget (KES)', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Qty', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Agent', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Added', 'corido-vendor-tracker' ); ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $entries as $entry ) :
+					$si    = $status_labels[ $entry->status ] ?? array( 'label' => $entry->status, 'class' => '' );
+					$budget = '';
+					if ( $entry->budget_min && $entry->budget_max ) {
+						$budget = CVT_Settings::format_currency( $entry->budget_min ) . ' – ' . CVT_Settings::format_currency( $entry->budget_max );
+					} elseif ( $entry->budget_max ) {
+						$budget = 'up to ' . CVT_Settings::format_currency( $entry->budget_max );
+					} elseif ( $entry->budget_min ) {
+						$budget = 'from ' . CVT_Settings::format_currency( $entry->budget_min );
+					}
+					$entry_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+				?>
+				<tr>
+					<td><strong><?php echo esc_html( $entry->client_name ); ?></strong></td>
+					<td>
+						<a href="tel:<?php echo esc_attr( $entry->phone ); ?>"><?php echo esc_html( $entry->phone ); ?></a>
+					</td>
+					<td>
+						<?php if ( $entry->category ) : ?>
+						<span class="cvt-role-chip"><?php echo esc_html( $entry->category ); ?></span>
+						<?php endif; ?>
+						<?php foreach ( $entry_tags as $tag ) : ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) ) ); ?>"
+							class="cvt-tag-pill cvt-tag-pill--inline<?php echo ( $filter_tag === $tag ) ? ' cvt-tag-pill--active' : ''; ?>">
+							<?php echo esc_html( $tag ); ?>
+						</a>
 						<?php endforeach; ?>
-					</tbody>
-				</table>
+						<?php echo esc_html( wp_trim_words( $entry->description ?? '', 10, '…' ) ); ?>
+					</td>
+					<td><?php echo $budget ? esc_html( $budget ) : '—'; ?></td>
+					<td><?php echo esc_html( $entry->quantity ); ?></td>
+					<td>
+						<span class="cvt-badge <?php echo esc_attr( $si['class'] ); ?>">
+							<?php echo esc_html( $si['label'] ); ?>
+						</span>
+						<?php if ( $entry->matched_item_id ) : ?>
+						<br><a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-items&action=view&id=' . $entry->matched_item_id ) ); ?>" class="cvt-muted" style="font-size:11px;">
+							<?php esc_html_e( 'View matched item', 'corido-vendor-tracker' ); ?>
+						</a>
+						<?php endif; ?>
+					</td>
+					<td><?php echo esc_html( $entry->agent_name ?: '—' ); ?></td>
+					<td><?php echo esc_html( date_i18n( 'd M Y', strtotime( $entry->created_at ) ) ); ?></td>
+					<td class="cvt-row-actions">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&action=edit&id=' . $entry->id ) ); ?>" class="button button-small">
+							<?php esc_html_e( 'Edit', 'corido-vendor-tracker' ); ?>
+						</a>
+						<a href="<?php echo esc_url( wp_nonce_url(
+							admin_url( 'admin-post.php?action=cvt_delete_waitlist&id=' . $entry->id ),
+							'cvt_delete_waitlist'
+						) ); ?>" class="button button-small cvt-delete-link">
+							<?php esc_html_e( 'Delete', 'corido-vendor-tracker' ); ?>
+						</a>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
 
-				<?php if ( $total_pages > 1 ) : ?>
-				<div class="tablenav bottom">
-					<div class="tablenav-pages">
-						<?php
-						$base_url = admin_url( 'admin.php?page=cvt-waitlist'
-							. ( $filter_status   ? '&status=' . urlencode( $filter_status )     : '' )
-							. ( $filter_category ? '&category=' . urlencode( $filter_category ) : '' )
-							. ( $filter_search   ? '&s=' . urlencode( $filter_search )           : '' )
-							. ( $filter_tag      ? '&tag=' . urlencode( $filter_tag )            : '' ) );
-						echo paginate_links( array(
-							'base'      => $base_url . '&paged=%#%',
-							'format'    => '',
-							'current'   => $paged,
-							'total'     => $total_pages,
-							'prev_text' => '&laquo;',
-							'next_text' => '&raquo;',
-						) );
-						?>
-					</div>
-				</div>
-				<?php endif; ?>
-				<?php endif; ?>
+		<?php if ( $total_pages > 1 ) : ?>
+		<div class="tablenav bottom">
+			<div class="tablenav-pages">
+				<?php
+				$base_url = admin_url( 'admin.php?page=cvt-waitlist'
+					. ( $filter_status   ? '&status=' . urlencode( $filter_status )     : '' )
+					. ( $filter_category ? '&category=' . urlencode( $filter_category ) : '' )
+					. ( $filter_search   ? '&s=' . urlencode( $filter_search )           : '' )
+					. ( $filter_tag      ? '&tag=' . urlencode( $filter_tag )            : '' ) );
+				echo paginate_links( array(
+					'base'      => $base_url . '&paged=%#%',
+					'format'    => '',
+					'current'   => $paged,
+					'total'     => $total_pages,
+					'prev_text' => '&laquo;',
+					'next_text' => '&raquo;',
+				) );
+				?>
 			</div>
+		</div>
+		<?php endif; ?>
+		<?php endif; ?>
+	</div>
 
-		</div><!-- .cvt-wl-main -->
+	<!-- Demand by Tag — shown below the entries table -->
+	<div class="cvt-card" style="margin-top:20px;">
+		<h2 class="cvt-card-title"><?php esc_html_e( 'Demand by Tag', 'corido-vendor-tracker' ); ?>
+			<span class="cvt-tag-demand-sub"><?php esc_html_e( '— open requests only', 'corido-vendor-tracker' ); ?></span>
+		</h2>
 
-		<!-- ============================================================
-		     RIGHT SIDEBAR: tag demand summary
-		     ============================================================ -->
-		<div class="cvt-wl-sidebar">
-			<div class="cvt-card cvt-tag-demand-card">
-				<h2 class="cvt-card-title"><?php esc_html_e( 'Demand by Tag', 'corido-vendor-tracker' ); ?></h2>
-				<p class="cvt-tag-demand-sub"><?php esc_html_e( 'Open requests only', 'corido-vendor-tracker' ); ?></p>
+		<?php if ( empty( $tag_counts ) ) : ?>
+		<p class="cvt-empty"><?php esc_html_e( 'No tags yet. Add tags to entries to see demand counts here.', 'corido-vendor-tracker' ); ?></p>
+		<?php else : ?>
+		<table class="cvt-tag-count-table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Tag', 'corido-vendor-tracker' ); ?></th>
+					<th class="cvt-tag-count-col"><?php esc_html_e( 'Open Requests', 'corido-vendor-tracker' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $tag_counts as $tag => $count ) :
+					$tag_url   = admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) );
+					$is_active = ( $filter_tag === $tag );
+				?>
+				<tr class="<?php echo $is_active ? 'cvt-tag-row--active' : ''; ?>">
+					<td>
+						<a href="<?php echo esc_url( $tag_url ); ?>" class="cvt-tag-row-link">
+							<?php echo esc_html( $tag ); ?>
+						</a>
+					</td>
+					<td class="cvt-tag-count-col">
+						<span class="cvt-tag-count-badge"><?php echo esc_html( $count ); ?></span>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php if ( $filter_tag ) : ?>
+		<p style="margin-top:10px;">
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="cvt-tag-clear">
+				<?php esc_html_e( '× Clear tag filter', 'corido-vendor-tracker' ); ?>
+			</a>
+		</p>
+		<?php endif; ?>
+		<?php endif; ?>
+	</div>
 
-				<?php if ( empty( $tag_counts ) ) : ?>
-				<p class="cvt-empty" style="font-size:12px;">
-					<?php esc_html_e( 'No tags yet. Add tags to entries to see demand here.', 'corido-vendor-tracker' ); ?>
-				</p>
-				<?php else : ?>
-				<table class="cvt-tag-count-table">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Tag', 'corido-vendor-tracker' ); ?></th>
-							<th class="cvt-tag-count-col"><?php esc_html_e( 'Count', 'corido-vendor-tracker' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $tag_counts as $tag => $count ) :
-							$tag_url   = admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) );
-							$is_active = ( $filter_tag === $tag );
-						?>
-						<tr class="<?php echo $is_active ? 'cvt-tag-row--active' : ''; ?>">
-							<td>
-								<a href="<?php echo esc_url( $tag_url ); ?>" class="cvt-tag-row-link">
-									<?php echo esc_html( $tag ); ?>
-								</a>
-							</td>
-							<td class="cvt-tag-count-col">
-								<span class="cvt-tag-count-badge"><?php echo esc_html( $count ); ?></span>
-							</td>
-						</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<?php if ( $filter_tag ) : ?>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="cvt-tag-clear" style="display:block;margin-top:10px;text-align:center;">
-					<?php esc_html_e( '× Clear tag filter', 'corido-vendor-tracker' ); ?>
-				</a>
-				<?php endif; ?>
-				<?php endif; ?>
-			</div>
-		</div><!-- .cvt-wl-sidebar -->
-
-	</div><!-- .cvt-wl-layout -->
 </div>

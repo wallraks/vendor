@@ -747,23 +747,13 @@
 }
 
 /* ============================================================
-   WAITING LIST TWO-COLUMN LAYOUT
+   TAG COUNT TABLE (Demand by Tag — below waiting list)
    ============================================================ */
-.cvt-wl-layout {
-	display: grid;
-	grid-template-columns: 1fr 240px;
-	gap: 20px;
-	align-items: start;
-}
-.cvt-wl-main  { min-width: 0; }
-.cvt-wl-sidebar { min-width: 0; }
-
-/* Tag demand sidebar card */
-.cvt-tag-demand-card .cvt-card-title { margin-bottom: 2px; }
 .cvt-tag-demand-sub {
-	font-size: 11px;
+	font-size: 12px;
 	color: var(--cvt-muted);
-	margin: 0 0 10px;
+	font-weight: 400;
+	margin-left: 6px;
 }
 .cvt-tag-count-table {
 	width: 100%;

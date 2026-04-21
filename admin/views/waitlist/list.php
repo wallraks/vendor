@@ -8,16 +8,21 @@ $filter_status   = sanitize_key( $_GET['status']   ?? '' );
 $filter_category = sanitize_text_field( $_GET['category'] ?? '' );
 $filter_agent    = absint( $_GET['agent_id'] ?? 0 );
 $filter_search   = sanitize_text_field( $_GET['s'] ?? '' );
+$filter_tag      = sanitize_text_field( $_GET['tag'] ?? '' );
 $paged           = max( 1, absint( $_GET['paged'] ?? 1 ) );
 
 $result = CVT_Waitlist::get_all( array(
 	'search'   => $filter_search,
 	'status'   => $filter_status,
 	'category' => $filter_category,
+	'tag'      => $filter_tag,
 	'agent_id' => $filter_agent,
 	'per_page' => 20,
 	'paged'    => $paged,
 ) );
+
+// Tag counts (always for open entries so the summary reflects demand).
+$tag_counts = CVT_Waitlist::get_tag_counts( 'open' );
 
 $entries    = $result['items'];
 $total      = $result['total'];
@@ -41,6 +46,27 @@ $status_labels = array(
 	</div>
 
 	<?php CVT_Admin::render_notice(); ?>
+
+	<?php if ( ! empty( $tag_counts ) ) : ?>
+	<div class="cvt-tag-summary">
+		<span class="cvt-tag-summary-label"><?php esc_html_e( 'Open demand by tag:', 'corido-vendor-tracker' ); ?></span>
+		<?php foreach ( $tag_counts as $tag => $count ) :
+			$tag_url   = admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) . '&status=open' );
+			$is_active = ( $filter_tag === $tag );
+		?>
+		<a href="<?php echo esc_url( $tag_url ); ?>"
+			class="cvt-tag-pill<?php echo $is_active ? ' cvt-tag-pill--active' : ''; ?>">
+			<?php echo esc_html( $tag ); ?>
+			<span class="cvt-tag-pill-count"><?php echo esc_html( $count ); ?></span>
+		</a>
+		<?php endforeach; ?>
+		<?php if ( $filter_tag ) : ?>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="cvt-tag-clear">
+			<?php esc_html_e( '× clear tag filter', 'corido-vendor-tracker' ); ?>
+		</a>
+		<?php endif; ?>
+	</div>
+	<?php endif; ?>
 
 	<!-- Filters -->
 	<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="cvt-filter-bar">
@@ -80,8 +106,11 @@ $status_labels = array(
 		</select>
 		<?php endif; ?>
 
+		<?php if ( $filter_tag ) : ?>
+		<input type="hidden" name="tag" value="<?php echo esc_attr( $filter_tag ); ?>">
+		<?php endif; ?>
 		<button type="submit" class="button"><?php esc_html_e( 'Filter', 'corido-vendor-tracker' ); ?></button>
-		<?php if ( $filter_status || $filter_category || $filter_search || $filter_agent ) : ?>
+		<?php if ( $filter_status || $filter_category || $filter_search || $filter_agent || $filter_tag ) : ?>
 		<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'corido-vendor-tracker' ); ?></a>
 		<?php endif; ?>
 	</form>
@@ -125,7 +154,13 @@ $status_labels = array(
 						<?php if ( $entry->category ) : ?>
 						<span class="cvt-role-chip"><?php echo esc_html( $entry->category ); ?></span>
 						<?php endif; ?>
-						<?php echo esc_html( wp_trim_words( $entry->description ?? '', 12, '…' ) ); ?>
+						<?php foreach ( CVT_Waitlist::decode_tags( $entry->tags ?? '' ) as $tag ) : ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&tag=' . urlencode( $tag ) . '&status=open' ) ); ?>"
+							class="cvt-tag-pill cvt-tag-pill--inline<?php echo ( $filter_tag === $tag ) ? ' cvt-tag-pill--active' : ''; ?>">
+							<?php echo esc_html( $tag ); ?>
+						</a>
+						<?php endforeach; ?>
+						<?php echo esc_html( wp_trim_words( $entry->description ?? '', 10, '…' ) ); ?>
 					</td>
 					<td><?php echo $budget ? esc_html( $budget ) : '—'; ?></td>
 					<td><?php echo esc_html( $entry->quantity ); ?></td>
@@ -162,9 +197,10 @@ $status_labels = array(
 			<div class="tablenav-pages">
 				<?php
 				$base_url = admin_url( 'admin.php?page=cvt-waitlist'
-					. ( $filter_status   ? '&status=' . urlencode( $filter_status )   : '' )
+					. ( $filter_status   ? '&status=' . urlencode( $filter_status )     : '' )
 					. ( $filter_category ? '&category=' . urlencode( $filter_category ) : '' )
-					. ( $filter_search   ? '&s=' . urlencode( $filter_search )         : '' ) );
+					. ( $filter_search   ? '&s=' . urlencode( $filter_search )           : '' )
+					. ( $filter_tag      ? '&tag=' . urlencode( $filter_tag )            : '' ) );
 				echo paginate_links( array(
 					'base'      => $base_url . '&paged=%#%',
 					'format'    => '',

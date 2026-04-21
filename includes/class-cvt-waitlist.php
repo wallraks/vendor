@@ -67,7 +67,7 @@ class CVT_Waitlist {
 	/**
 	 * Paginated, filtered list.
 	 *
-	 * @param  array $args { search, status, category, agent_id, orderby, order, per_page, paged }
+	 * @param  array $args { search, status, category, tag, agent_id, orderby, order, per_page, paged }
 	 * @return array { items, total }
 	 */
 	public static function get_all( array $args = array() ) {
@@ -77,6 +77,7 @@ class CVT_Waitlist {
 			'search'   => '',
 			'status'   => '',
 			'category' => '',
+			'tag'      => '',
 			'agent_id' => 0,
 			'orderby'  => 'created_at',
 			'order'    => 'DESC',
@@ -102,6 +103,11 @@ class CVT_Waitlist {
 		if ( ! empty( $args['category'] ) ) {
 			$where[]  = 'w.category = %s';
 			$params[] = $args['category'];
+		}
+		if ( ! empty( $args['tag'] ) ) {
+			// JSON array search: match the exact quoted tag string within the stored JSON.
+			$where[]  = 'w.tags LIKE %s';
+			$params[] = '%' . $wpdb->esc_like( '"' . $args['tag'] . '"' ) . '%';
 		}
 		if ( ! empty( $args['agent_id'] ) ) {
 			$where[]  = 'w.assigned_agent_id = %d';
@@ -148,6 +154,57 @@ class CVT_Waitlist {
 
 		$wpdb->delete( CVT_DB::waitlist(), array( 'id' => $id ), array( '%d' ) );
 		return true;
+	}
+
+	// -------------------------------------------------------------------------
+	// Tags
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Decode a stored JSON tags value to a plain PHP array.
+	 *
+	 * @param  string $raw  JSON string from the DB column (may be empty).
+	 * @return string[]
+	 */
+	public static function decode_tags( $raw ) {
+		if ( ! $raw ) {
+			return array();
+		}
+		$decoded = json_decode( $raw, true );
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * Return a map of tag => count across waiting-list entries.
+	 * Counts only entries whose status matches $status (pass '' for all statuses).
+	 *
+	 * @param  string $status  'open' | 'matched' | 'fulfilled' | 'cancelled' | ''
+	 * @return array  tag => count, sorted by count descending
+	 */
+	public static function get_tag_counts( $status = 'open' ) {
+		global $wpdb;
+		$table = CVT_DB::waitlist();
+
+		if ( $status !== '' ) {
+			$rows = $wpdb->get_col( $wpdb->prepare(
+				"SELECT tags FROM $table WHERE status = %s AND tags != ''",
+				$status
+			) );
+		} else {
+			$rows = $wpdb->get_col( "SELECT tags FROM $table WHERE tags != ''" );
+		}
+
+		$counts = array();
+		foreach ( $rows as $json ) {
+			foreach ( self::decode_tags( $json ) as $tag ) {
+				$tag = trim( $tag );
+				if ( $tag !== '' ) {
+					$counts[ $tag ] = ( $counts[ $tag ] ?? 0 ) + 1;
+				}
+			}
+		}
+		arsort( $counts );
+		return $counts;
 	}
 
 	// -------------------------------------------------------------------------
@@ -207,10 +264,24 @@ class CVT_Waitlist {
 			'quantity'         => max( 1, absint( $data['quantity'] ?? 1 ) ),
 			'timeframe'        => substr( sanitize_text_field( $data['timeframe'] ?? '' ), 0, 200 ),
 			'notes'            => sanitize_textarea_field( $data['notes'] ?? '' ),
+			'tags'             => self::normalize_tags( $data['tags'] ?? '' ),
 			'status'           => in_array( $data['status'] ?? 'open', $allowed_statuses, true )
 				? $data['status'] : 'open',
 			'matched_item_id'  => ! empty( $data['matched_item_id'] ) ? absint( $data['matched_item_id'] ) : null,
 			'assigned_agent_id' => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
 		);
+	}
+
+	/**
+	 * Normalise raw tag input (comma-separated string or array) into a
+	 * JSON-encoded array string for storage, or '' if no tags given.
+	 */
+	private static function normalize_tags( $raw ) {
+		$tags = is_array( $raw ) ? $raw : explode( ',', (string) $raw );
+		$tags = array_values( array_unique( array_filter( array_map(
+			function( $t ) { return substr( sanitize_text_field( trim( $t ) ), 0, 100 ); },
+			$tags
+		), function( $t ) { return $t !== ''; } ) ) );
+		return $tags ? (string) wp_json_encode( $tags ) : '';
 	}
 }

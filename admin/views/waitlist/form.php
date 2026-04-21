@@ -2,6 +2,9 @@
 
 $entry_id  = absint( $_GET['id'] ?? 0 );
 $entry     = $entry_id ? CVT_Waitlist::get( $entry_id ) : null;
+$entry_tags = $entry && ! empty( $entry->tags )
+	? implode( ', ', CVT_Waitlist::decode_tags( $entry->tags ) )
+	: '';
 $is_edit   = (bool) $entry;
 $title     = $is_edit ? __( 'Edit Entry', 'corido-vendor-tracker' ) : __( 'Add Waiting List Entry', 'corido-vendor-tracker' );
 $agents    = CVT_Roles::get_agents();
@@ -101,6 +104,14 @@ $categories = CVT_Settings::categories();
 						<input type="text" id="timeframe" name="timeframe" class="widefat"
 							value="<?php echo esc_attr( $entry->timeframe ?? '' ); ?>"
 							placeholder="<?php esc_attr_e( 'e.g. Within 2 weeks, ASAP, flexible', 'corido-vendor-tracker' ); ?>">
+					</div>
+
+					<div class="cvt-field">
+						<label for="tags"><?php esc_html_e( 'Tags', 'corido-vendor-tracker' ); ?></label>
+						<input type="text" id="tags" name="tags" class="widefat"
+							value="<?php echo esc_attr( $entry_tags ); ?>"
+							placeholder="<?php esc_attr_e( 'e.g. TV, Samsung, 55 inch, white — comma-separated', 'corido-vendor-tracker' ); ?>">
+						<p class="description"><?php esc_html_e( 'Specific product tags for reporting. Separate with commas.', 'corido-vendor-tracker' ); ?></p>
 					</div>
 
 					<div class="cvt-field">

@@ -14,8 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CVT_VERSION',     '1.7.1' );
-define( 'CVT_DB_VERSION',  '7' );
+define( 'CVT_VERSION',     '1.7.2' );
+define( 'CVT_DB_VERSION',  '8' );
 define( 'CVT_PLUGIN_FILE', __FILE__ );
 define( 'CVT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'CVT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );

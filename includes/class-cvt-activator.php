@@ -46,6 +46,12 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_items MODIFY deal_type enum('consignment','agency','listing') NOT NULL DEFAULT 'consignment'" );
 		}
 
+		// Add tags column to waitlist table if not present.
+		$tags_col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_waitlist LIKE 'tags'" );
+		if ( ! $tags_col ) {
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_waitlist ADD COLUMN tags text NOT NULL DEFAULT '' AFTER notes" );
+		}
+
 		CVT_Roles::sync_external_roles();
 		update_option( 'cvt_db_version', CVT_DB_VERSION );
 	}
@@ -158,6 +164,7 @@ class CVT_Activator {
 			quantity         smallint(5) UNSIGNED NOT NULL DEFAULT 1,
 			timeframe        varchar(200) NOT NULL DEFAULT '',
 			notes            text,
+			tags             text NOT NULL DEFAULT '',
 			status           enum('open','matched','fulfilled','cancelled') NOT NULL DEFAULT 'open',
 			matched_item_id  bigint(20) UNSIGNED DEFAULT NULL,
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,

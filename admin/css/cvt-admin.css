@@ -746,6 +746,78 @@
 	margin-right: 4px;
 }
 
+/* ============================================================
+   TAG SUMMARY BAR + TAG PILLS (Waiting List)
+   ============================================================ */
+.cvt-tag-summary {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	background: #fff;
+	border: 1px solid var(--cvt-border);
+	border-radius: var(--cvt-radius);
+	padding: 10px 14px;
+	margin-bottom: 12px;
+}
+.cvt-tag-summary-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--cvt-muted);
+	margin-right: 4px;
+	white-space: nowrap;
+}
+.cvt-tag-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: #f0f4ff;
+	color: #3450a4;
+	border: 1px solid #c5d0f5;
+	border-radius: 20px;
+	padding: 2px 10px;
+	font-size: 12px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: background 0.12s, color 0.12s;
+	cursor: pointer;
+}
+.cvt-tag-pill:hover {
+	background: #3450a4;
+	color: #fff;
+	border-color: #3450a4;
+}
+.cvt-tag-pill--active {
+	background: #3450a4;
+	color: #fff;
+	border-color: #3450a4;
+}
+.cvt-tag-pill-count {
+	background: rgba(0,0,0,.12);
+	border-radius: 20px;
+	padding: 0 5px;
+	font-size: 11px;
+	font-weight: 700;
+}
+.cvt-tag-pill--active .cvt-tag-pill-count {
+	background: rgba(255,255,255,.25);
+}
+.cvt-tag-pill--inline {
+	padding: 1px 7px;
+	font-size: 11px;
+	margin-right: 2px;
+	margin-bottom: 2px;
+}
+.cvt-tag-clear {
+	font-size: 11px;
+	color: var(--cvt-muted);
+	text-decoration: none;
+	margin-left: 4px;
+}
+.cvt-tag-clear:hover {
+	color: var(--cvt-red);
+}
+
 .cvt-workflow {
 	padding: 12px 0;
 }

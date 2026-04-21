@@ -15,6 +15,25 @@ class CVT_Activator {
 		if ( false === get_option( 'cvt_commission_rate' ) ) {
 			update_option( 'cvt_commission_rate', '12' );
 		}
+		if ( false === get_option( 'cvt_waitlist_tags' ) ) {
+			update_option( 'cvt_waitlist_tags', implode( "\n", array(
+				'TV',
+				'Fridge',
+				'Washing Machine',
+				'Sofa / Couch',
+				'Bed / Mattress',
+				'Dining Table',
+				'Laptop',
+				'Phone',
+				'Microwave',
+				'Oven',
+				'Air Conditioner',
+				'Water Dispenser',
+				'Generator',
+				'Car',
+			) ) );
+		}
+
 		if ( false === get_option( 'cvt_categories' ) ) {
 			update_option( 'cvt_categories', implode( "\n", array(
 				'Furniture',

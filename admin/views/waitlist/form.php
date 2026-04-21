@@ -1,10 +1,7 @@
 <?php defined( 'ABSPATH' ) || exit;
 
-$entry_id  = absint( $_GET['id'] ?? 0 );
-$entry     = $entry_id ? CVT_Waitlist::get( $entry_id ) : null;
-$entry_tags = $entry && ! empty( $entry->tags )
-	? implode( ', ', CVT_Waitlist::decode_tags( $entry->tags ) )
-	: '';
+$entry_id = absint( $_GET['id'] ?? 0 );
+$entry    = $entry_id ? CVT_Waitlist::get( $entry_id ) : null;
 $is_edit   = (bool) $entry;
 $title     = $is_edit ? __( 'Edit Entry', 'corido-vendor-tracker' ) : __( 'Add Waiting List Entry', 'corido-vendor-tracker' );
 $agents    = CVT_Roles::get_agents();
@@ -107,11 +104,39 @@ $categories = CVT_Settings::categories();
 					</div>
 
 					<div class="cvt-field">
-						<label for="tags"><?php esc_html_e( 'Tags', 'corido-vendor-tracker' ); ?></label>
-						<input type="text" id="tags" name="tags" class="widefat"
-							value="<?php echo esc_attr( $entry_tags ); ?>"
-							placeholder="<?php esc_attr_e( 'e.g. TV, Samsung, 55 inch, white — comma-separated', 'corido-vendor-tracker' ); ?>">
-						<p class="description"><?php esc_html_e( 'Specific product tags for reporting. Separate with commas.', 'corido-vendor-tracker' ); ?></p>
+						<label><?php esc_html_e( 'Tags', 'corido-vendor-tracker' ); ?></label>
+						<?php
+						$defined_tags  = CVT_Settings::waitlist_tags();
+						$selected_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+						?>
+						<?php if ( ! empty( $defined_tags ) ) : ?>
+						<div class="cvt-tag-picker" id="cvt-tag-picker">
+							<?php foreach ( $defined_tags as $tag ) :
+								$checked = in_array( $tag, $selected_tags, true );
+							?>
+							<label class="cvt-tag-toggle<?php echo $checked ? ' cvt-tag-toggle--on' : ''; ?>">
+								<input type="checkbox" name="tags[]"
+									value="<?php echo esc_attr( $tag ); ?>"
+									<?php checked( $checked ); ?>>
+								<span class="cvt-tag-toggle-label"><?php echo esc_html( $tag ); ?></span>
+								<span class="cvt-tag-toggle-x" aria-hidden="true">×</span>
+							</label>
+							<?php endforeach; ?>
+						</div>
+						<p class="description"><?php esc_html_e( 'Click to select. Click again to remove.', 'corido-vendor-tracker' ); ?></p>
+						<?php else : ?>
+						<p class="description">
+							<?php
+							printf(
+								wp_kses(
+									__( 'No tags defined yet. <a href="%s">Add tags in Settings → Waiting List Tags</a>.', 'corido-vendor-tracker' ),
+									array( 'a' => array( 'href' => array() ) )
+								),
+								esc_url( admin_url( 'admin.php?page=cvt-settings' ) )
+							);
+							?>
+						</p>
+						<?php endif; ?>
 					</div>
 
 					<div class="cvt-field">
@@ -170,3 +195,15 @@ $categories = CVT_Settings::categories();
 		</div>
 	</form>
 </div>
+<script>
+(function () {
+	document.querySelectorAll( '#cvt-tag-picker .cvt-tag-toggle' ).forEach( function ( label ) {
+		var cb = label.querySelector( 'input[type="checkbox"]' );
+		label.addEventListener( 'click', function ( e ) {
+			e.preventDefault();
+			cb.checked = ! cb.checked;
+			label.classList.toggle( 'cvt-tag-toggle--on', cb.checked );
+		} );
+	} );
+}() );
+</script>

@@ -812,6 +812,64 @@
 }
 
 /* ============================================================
+   TAG CHIP PICKER (waitlist form)
+   ============================================================ */
+.cvt-tag-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 6px;
+}
+.cvt-tag-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 12px;
+	border: 1.5px solid var(--cvt-border);
+	border-radius: 20px;
+	background: #f9f9f9;
+	color: var(--cvt-text);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	user-select: none;
+	transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.cvt-tag-toggle input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+.cvt-tag-toggle:hover {
+	border-color: var(--cvt-primary);
+	color: var(--cvt-primary);
+	background: #f0f6ff;
+}
+.cvt-tag-toggle-x {
+	font-size: 15px;
+	line-height: 1;
+	display: none;
+	font-weight: 700;
+	color: inherit;
+}
+/* Selected state */
+.cvt-tag-toggle--on {
+	border-color: var(--cvt-primary);
+	background: var(--cvt-primary);
+	color: #fff;
+}
+.cvt-tag-toggle--on:hover {
+	background: #005a8c;
+	border-color: #005a8c;
+	color: #fff;
+}
+.cvt-tag-toggle--on .cvt-tag-toggle-x {
+	display: inline;
+}
+
+/* ============================================================
    TAG PILLS (inline in table rows)
    ============================================================ */
 .cvt-tag-pill {

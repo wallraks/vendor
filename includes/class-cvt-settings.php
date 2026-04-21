@@ -22,6 +22,22 @@ class CVT_Settings {
 	}
 
 	// -------------------------------------------------------------------------
+	// Waiting List Tags
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Returns the predefined waiting-list tag list as an array of strings.
+	 * Sourced from the manual textarea in Settings.
+	 *
+	 * @return string[]
+	 */
+	public static function waitlist_tags() {
+		$raw   = get_option( 'cvt_waitlist_tags', '' );
+		$lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
+		return array_values( $lines );
+	}
+
+	// -------------------------------------------------------------------------
 	// Categories — Listivo taxonomy integration
 	// -------------------------------------------------------------------------
 
@@ -139,6 +155,10 @@ class CVT_Settings {
 
 		if ( isset( $data['categories'] ) ) {
 			update_option( 'cvt_categories', sanitize_textarea_field( $data['categories'] ) );
+		}
+
+		if ( isset( $data['cvt_waitlist_tags'] ) ) {
+			update_option( 'cvt_waitlist_tags', sanitize_textarea_field( $data['cvt_waitlist_tags'] ) );
 		}
 
 		if ( isset( $data['cvt_listivo_taxonomy'] ) ) {

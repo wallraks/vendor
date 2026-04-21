@@ -174,6 +174,30 @@ $source_info = CVT_Settings::categories_source_info();
 			</form>
 		</div>
 
+		<!-- Waiting List Tags -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Waiting List Tags', 'corido-vendor-tracker' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Define the tags that agents can attach to waiting-list entries. One tag per line. These tags appear as selectable chips on the Add/Edit Entry form and power the Demand by Tag summary on the list page.', 'corido-vendor-tracker' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
+				<input type="hidden" name="action" value="cvt_save_settings">
+				<div class="cvt-field" style="margin-top:12px;">
+					<label for="cvt_waitlist_tags"><?php esc_html_e( 'Tag List', 'corido-vendor-tracker' ); ?></label>
+					<textarea id="cvt_waitlist_tags" name="cvt_waitlist_tags" rows="10" class="widefat"><?php
+						echo esc_textarea( get_option( 'cvt_waitlist_tags', '' ) );
+					?></textarea>
+					<p class="description">
+						<?php esc_html_e( 'One tag per line. Example: TV, Fridge, Washing Machine…', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+				<button type="submit" class="button button-primary">
+					<?php esc_html_e( 'Save Tags', 'corido-vendor-tracker' ); ?>
+				</button>
+			</form>
+		</div>
+
 		<!-- Listivo Slug Finder -->
 		<div class="cvt-card">
 			<h2 class="cvt-card-title"><?php esc_html_e( 'Listivo Slug Finder', 'corido-vendor-tracker' ); ?></h2>

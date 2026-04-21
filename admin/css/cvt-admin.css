@@ -747,26 +747,73 @@
 }
 
 /* ============================================================
-   TAG SUMMARY BAR + TAG PILLS (Waiting List)
+   WAITING LIST TWO-COLUMN LAYOUT
    ============================================================ */
-.cvt-tag-summary {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 6px;
-	background: #fff;
-	border: 1px solid var(--cvt-border);
-	border-radius: var(--cvt-radius);
-	padding: 10px 14px;
-	margin-bottom: 12px;
+.cvt-wl-layout {
+	display: grid;
+	grid-template-columns: 1fr 240px;
+	gap: 20px;
+	align-items: start;
 }
-.cvt-tag-summary-label {
-	font-size: 12px;
+.cvt-wl-main  { min-width: 0; }
+.cvt-wl-sidebar { min-width: 0; }
+
+/* Tag demand sidebar card */
+.cvt-tag-demand-card .cvt-card-title { margin-bottom: 2px; }
+.cvt-tag-demand-sub {
+	font-size: 11px;
+	color: var(--cvt-muted);
+	margin: 0 0 10px;
+}
+.cvt-tag-count-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.cvt-tag-count-table th {
+	text-align: left;
+	font-size: 11px;
 	font-weight: 600;
 	color: var(--cvt-muted);
-	margin-right: 4px;
-	white-space: nowrap;
+	padding: 4px 6px;
+	border-bottom: 1px solid var(--cvt-border);
 }
+.cvt-tag-count-table td {
+	padding: 5px 6px;
+	border-bottom: 1px solid #f5f5f5;
+	vertical-align: middle;
+}
+.cvt-tag-count-table tr:last-child td { border-bottom: none; }
+.cvt-tag-count-col { text-align: right; white-space: nowrap; }
+.cvt-tag-row-link {
+	text-decoration: none;
+	color: var(--cvt-text);
+	font-weight: 500;
+}
+.cvt-tag-row-link:hover { color: var(--cvt-primary); }
+.cvt-tag-row--active { background: #eef3ff; }
+.cvt-tag-row--active .cvt-tag-row-link { color: var(--cvt-primary); font-weight: 700; }
+.cvt-tag-count-badge {
+	display: inline-block;
+	background: var(--cvt-primary);
+	color: #fff;
+	border-radius: 20px;
+	padding: 1px 8px;
+	font-size: 12px;
+	font-weight: 700;
+	min-width: 24px;
+	text-align: center;
+}
+.cvt-tag-row--active .cvt-tag-count-badge { background: #3450a4; }
+.cvt-active-tag-notice {
+	font-size: 12px;
+	color: var(--cvt-muted);
+	margin: 6px 0 0;
+}
+
+/* ============================================================
+   TAG PILLS (inline in table rows)
+   ============================================================ */
 .cvt-tag-pill {
 	display: inline-flex;
 	align-items: center;

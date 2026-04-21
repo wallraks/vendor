@@ -359,25 +359,6 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 
 			<?php endif; ?>
 
-				<!-- Images (both modes) -->
-				<div class="cvt-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Images', 'corido-vendor-tracker' ); ?></h2>
-					<div id="cvt-image-grid" class="cvt-image-grid">
-						<?php foreach ( $images as $img ) :
-							$thumb = wp_get_attachment_image_url( $img->attachment_id, 'thumbnail' );
-						?>
-						<div class="cvt-image-thumb" data-row-id="<?php echo esc_attr( $img->id ); ?>" data-item-id="<?php echo esc_attr( $item_id ); ?>">
-							<img src="<?php echo esc_url( $thumb ); ?>" alt="">
-							<button type="button" class="cvt-image-remove" title="<?php esc_attr_e( 'Remove', 'corido-vendor-tracker' ); ?>">×</button>
-						</div>
-						<?php endforeach; ?>
-					</div>
-					<button type="button" id="cvt-add-image" class="button">
-						<?php esc_html_e( 'Add Image', 'corido-vendor-tracker' ); ?>
-					</button>
-					<p class="description"><?php esc_html_e( 'Images are saved immediately when added. Removing them also takes effect straight away.', 'corido-vendor-tracker' ); ?></p>
-				</div>
-
 			</div><!-- .cvt-form-main -->
 
 			<div class="cvt-form-sidebar">
@@ -440,6 +421,25 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 							<?php esc_html_e( 'Upload the signed consignment agreement (PDF or image). To reuse an agreement across multiple items, open the Media Library and select the previously uploaded file.', 'corido-vendor-tracker' ); ?>
 						</p>
 					</div>
+				</div>
+
+				<!-- Images -->
+				<div class="cvt-card">
+					<h2 class="cvt-card-title"><?php esc_html_e( 'Images', 'corido-vendor-tracker' ); ?></h2>
+					<div id="cvt-image-grid" class="cvt-image-grid">
+						<?php foreach ( $images as $img ) :
+							$thumb = wp_get_attachment_image_url( $img->attachment_id, 'thumbnail' );
+						?>
+						<div class="cvt-image-thumb" data-row-id="<?php echo esc_attr( $img->id ); ?>" data-item-id="<?php echo esc_attr( $item_id ); ?>">
+							<img src="<?php echo esc_url( $thumb ); ?>" alt="">
+							<button type="button" class="cvt-image-remove" title="<?php esc_attr_e( 'Remove', 'corido-vendor-tracker' ); ?>">×</button>
+						</div>
+						<?php endforeach; ?>
+					</div>
+					<button type="button" id="cvt-add-image" class="button">
+						<?php esc_html_e( 'Add Image', 'corido-vendor-tracker' ); ?>
+					</button>
+					<p class="description"><?php esc_html_e( 'Images are saved immediately when added. Removing also takes effect straight away.', 'corido-vendor-tracker' ); ?></p>
 				</div>
 
 				<!-- Save -->

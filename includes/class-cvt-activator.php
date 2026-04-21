@@ -71,6 +71,8 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_waitlist ADD COLUMN tags text NOT NULL DEFAULT '' AFTER notes" );
 		}
 
+		// Re-register native roles so capability changes take effect immediately.
+		CVT_Roles::register();
 		CVT_Roles::sync_external_roles();
 		update_option( 'cvt_db_version', CVT_DB_VERSION );
 	}

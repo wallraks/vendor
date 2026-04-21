@@ -40,8 +40,8 @@ class CVT_Roles {
 
 			// Status transitions.
 			'cvt_update_status_posted'     => array( 'admin', 'senior', 'junior' ),
-			'cvt_update_status_sold'       => array( 'admin', 'senior' ),
-			'cvt_update_status_withdrawn'  => array( 'admin', 'senior' ),
+			'cvt_update_status_sold'       => array( 'admin', 'senior', 'junior' ),
+			'cvt_update_status_withdrawn'  => array( 'admin', 'senior', 'junior' ),
 
 			// Payouts.
 			'cvt_view_payouts'             => array( 'admin', 'senior' ),

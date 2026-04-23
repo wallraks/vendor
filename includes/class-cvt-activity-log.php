@@ -102,6 +102,9 @@ class CVT_Activity_Log {
 				$to   = esc_html( CVT_Settings::status_info( $new['status'] ?? '' )['label'] ?? ( $new['status'] ?? '?' ) );
 				return "$actor changed status from <strong>$from</strong> to <strong>$to</strong>.";
 
+			case 'viewed':
+				return "$actor viewed this record.";
+
 			case 'updated':
 				return "$actor updated record details.";
 

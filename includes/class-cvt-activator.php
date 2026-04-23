@@ -71,6 +71,12 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_waitlist ADD COLUMN tags text NOT NULL DEFAULT '' AFTER notes" );
 		}
 
+		// Add 'waitlist' to activity_log entity_type enum.
+		$act_col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_activity_log LIKE 'entity_type'" );
+		if ( $act_col && strpos( $act_col->Type, 'waitlist' ) === false ) {
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_activity_log MODIFY entity_type enum('vendor','item','payout','waitlist') NOT NULL" );
+		}
+
 		// Re-register native roles so capability changes take effect immediately.
 		CVT_Roles::register();
 		CVT_Roles::sync_external_roles();
@@ -202,7 +208,7 @@ class CVT_Activator {
 		// Activity log table.
 		$sql[] = "CREATE TABLE {$wpdb->prefix}cvt_activity_log (
 			id          bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			entity_type enum('vendor','item','payout') NOT NULL,
+			entity_type enum('vendor','item','payout','waitlist') NOT NULL,
 			entity_id   bigint(20) UNSIGNED NOT NULL,
 			action      varchar(100) NOT NULL DEFAULT '',
 			old_value   longtext,

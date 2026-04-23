@@ -178,6 +178,9 @@ class CVT_Admin {
 			case 'edit':
 				require_once CVT_PLUGIN_DIR . 'admin/views/waitlist/form.php';
 				break;
+			case 'view':
+				require_once CVT_PLUGIN_DIR . 'admin/views/waitlist/view.php';
+				break;
 			default:
 				require_once CVT_PLUGIN_DIR . 'admin/views/waitlist/list.php';
 		}

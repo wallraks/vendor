@@ -1,7 +1,7 @@
 <?php defined( 'ABSPATH' ) || exit;
 
 $agents     = CVT_Roles::get_agents();
-$categories = CVT_Settings::categories();
+$categories = CVT_Settings::categories_structured();
 
 // Filters from query string.
 $filter_status   = sanitize_key( $_GET['status']   ?? '' );
@@ -21,11 +21,21 @@ $result = CVT_Waitlist::get_all( array(
 	'paged'    => $paged,
 ) );
 
-// Tag counts across ALL open entries (not affected by current filters).
-$tag_counts  = CVT_Waitlist::get_tag_counts( 'open' );
+// Tag counts filtered to only currently-defined tags (open entries).
+$defined_tags = CVT_Settings::waitlist_tags();
+$all_tag_counts = CVT_Waitlist::get_tag_counts( 'open' );
+$tag_counts = array();
+foreach ( $defined_tags as $dtag ) {
+	if ( isset( $all_tag_counts[ $dtag ] ) ) {
+		$tag_counts[ $dtag ] = $all_tag_counts[ $dtag ];
+	}
+}
+
 $entries     = $result['items'];
 $total       = $result['total'];
 $total_pages = ceil( $total / 20 );
+
+$is_admin_user = current_user_can( 'cvt_manage_settings' );
 
 $status_labels = array(
 	'open'      => array( 'label' => 'Open',      'class' => 'cvt-badge--review' ),
@@ -65,9 +75,11 @@ $status_labels = array(
 		<?php if ( $categories ) : ?>
 		<select name="category">
 			<option value=""><?php esc_html_e( 'All categories', 'corido-vendor-tracker' ); ?></option>
-			<?php foreach ( $categories as $cat ) : ?>
-			<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $filter_category, $cat ); ?>>
-				<?php echo esc_html( $cat ); ?>
+			<?php foreach ( $categories as $cat ) :
+				$prefix = $cat['depth'] > 0 ? str_repeat( "\u{00a0}", 3 ) . '↳ ' : '';
+			?>
+			<option value="<?php echo esc_attr( $cat['name'] ); ?>" <?php selected( $filter_category, $cat['name'] ); ?>>
+				<?php echo esc_html( $prefix . $cat['name'] ); ?>
 			</option>
 			<?php endforeach; ?>
 		</select>
@@ -133,11 +145,24 @@ $status_labels = array(
 						$budget = 'from ' . CVT_Settings::format_currency( $entry->budget_min );
 					}
 					$entry_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+
+					// Privacy: non-admins see blurred name and phone.
+					if ( $is_admin_user ) {
+						$display_name  = $entry->client_name;
+						$display_phone = $entry->phone;
+					} else {
+						$display_name  = mb_substr( $entry->client_name, 0, 2 ) . '×××';
+						$display_phone = mb_substr( $entry->phone, 0, 3 ) . '×××××';
+					}
 				?>
 				<tr>
-					<td><strong><?php echo esc_html( $entry->client_name ); ?></strong></td>
+					<td><strong><?php echo esc_html( $display_name ); ?></strong></td>
 					<td>
-						<a href="tel:<?php echo esc_attr( $entry->phone ); ?>"><?php echo esc_html( $entry->phone ); ?></a>
+						<?php if ( $is_admin_user ) : ?>
+						<a href="tel:<?php echo esc_attr( $entry->phone ); ?>"><?php echo esc_html( $display_phone ); ?></a>
+						<?php else : ?>
+						<?php echo esc_html( $display_phone ); ?>
+						<?php endif; ?>
 					</td>
 					<td>
 						<?php if ( $entry->category ) : ?>
@@ -166,6 +191,9 @@ $status_labels = array(
 					<td><?php echo esc_html( $entry->agent_name ?: '—' ); ?></td>
 					<td><?php echo esc_html( date_i18n( 'd M Y', strtotime( $entry->created_at ) ) ); ?></td>
 					<td class="cvt-row-actions">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&action=view&id=' . $entry->id ) ); ?>" class="button button-small">
+							<?php esc_html_e( 'View', 'corido-vendor-tracker' ); ?>
+						</a>
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&action=edit&id=' . $entry->id ) ); ?>" class="button button-small">
 							<?php esc_html_e( 'Edit', 'corido-vendor-tracker' ); ?>
 						</a>
@@ -212,7 +240,7 @@ $status_labels = array(
 		</h2>
 
 		<?php if ( empty( $tag_counts ) ) : ?>
-		<p class="cvt-empty"><?php esc_html_e( 'No tags yet. Add tags to entries to see demand counts here.', 'corido-vendor-tracker' ); ?></p>
+		<p class="cvt-empty"><?php esc_html_e( 'No open requests with defined tags yet.', 'corido-vendor-tracker' ); ?></p>
 		<?php else : ?>
 		<table class="cvt-tag-count-table">
 			<thead>

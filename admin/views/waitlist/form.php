@@ -1,11 +1,11 @@
 <?php defined( 'ABSPATH' ) || exit;
 
-$entry_id = absint( $_GET['id'] ?? 0 );
-$entry    = $entry_id ? CVT_Waitlist::get( $entry_id ) : null;
-$is_edit   = (bool) $entry;
-$title     = $is_edit ? __( 'Edit Entry', 'corido-vendor-tracker' ) : __( 'Add Waiting List Entry', 'corido-vendor-tracker' );
-$agents    = CVT_Roles::get_agents();
-$categories = CVT_Settings::categories();
+$entry_id   = absint( $_GET['id'] ?? 0 );
+$entry      = $entry_id ? CVT_Waitlist::get( $entry_id ) : null;
+$is_edit    = (bool) $entry;
+$title      = $is_edit ? __( 'Edit Entry', 'corido-vendor-tracker' ) : __( 'Add Waiting List Entry', 'corido-vendor-tracker' );
+$agents     = CVT_Roles::get_agents();
+$categories = CVT_Settings::categories_structured();
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -45,10 +45,18 @@ $categories = CVT_Settings::categories();
 						</div>
 					</div>
 
-					<div class="cvt-field">
-						<label for="email"><?php esc_html_e( 'Email', 'corido-vendor-tracker' ); ?></label>
-						<input type="email" id="email" name="email" class="widefat"
-							value="<?php echo esc_attr( $entry->email ?? '' ); ?>">
+					<div class="cvt-field-row">
+						<div class="cvt-field">
+							<label for="email"><?php esc_html_e( 'Email', 'corido-vendor-tracker' ); ?></label>
+							<input type="email" id="email" name="email" class="widefat"
+								value="<?php echo esc_attr( $entry->email ?? '' ); ?>">
+						</div>
+						<div class="cvt-field">
+							<label for="timeframe"><?php esc_html_e( 'Desired Timeframe', 'corido-vendor-tracker' ); ?></label>
+							<input type="text" id="timeframe" name="timeframe" class="widefat"
+								value="<?php echo esc_attr( $entry->timeframe ?? '' ); ?>"
+								placeholder="<?php esc_attr_e( 'e.g. Within 2 weeks, ASAP, flexible', 'corido-vendor-tracker' ); ?>">
+						</div>
 					</div>
 				</div>
 
@@ -61,9 +69,11 @@ $categories = CVT_Settings::categories();
 							<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
 							<select id="category" name="category" class="widefat">
 								<option value=""><?php esc_html_e( '— Any category —', 'corido-vendor-tracker' ); ?></option>
-								<?php foreach ( $categories as $cat ) : ?>
-								<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $entry->category ?? '', $cat ); ?>>
-									<?php echo esc_html( $cat ); ?>
+								<?php foreach ( $categories as $cat ) :
+									$prefix = $cat['depth'] > 0 ? str_repeat( "\u{00a0}", 3 ) . '↳ ' : '';
+								?>
+								<option value="<?php echo esc_attr( $cat['name'] ); ?>" <?php selected( $entry->category ?? '', $cat['name'] ); ?>>
+									<?php echo esc_html( $prefix . $cat['name'] ); ?>
 								</option>
 								<?php endforeach; ?>
 							</select>
@@ -75,18 +85,12 @@ $categories = CVT_Settings::categories();
 						</div>
 					</div>
 
-					<div class="cvt-field">
-						<label for="description"><?php esc_html_e( 'Description / Specifications', 'corido-vendor-tracker' ); ?></label>
-						<textarea id="description" name="description" rows="4" class="widefat"
-							placeholder="<?php esc_attr_e( 'Brand, model, condition preference, size, colour, any specific requirements…', 'corido-vendor-tracker' ); ?>"><?php echo esc_textarea( $entry->description ?? '' ); ?></textarea>
-					</div>
-
 					<div class="cvt-field-row">
 						<div class="cvt-field">
 							<label for="budget_min"><?php esc_html_e( 'Budget Min (KES)', 'corido-vendor-tracker' ); ?></label>
 							<input type="number" id="budget_min" name="budget_min" class="widefat" min="0" step="1"
 								value="<?php echo esc_attr( $entry->budget_min ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'Leave blank if no minimum', 'corido-vendor-tracker' ); ?>">
+								placeholder="<?php esc_attr_e( 'No minimum', 'corido-vendor-tracker' ); ?>">
 						</div>
 						<div class="cvt-field">
 							<label for="budget_max"><?php esc_html_e( 'Budget Max (KES)', 'corido-vendor-tracker' ); ?></label>
@@ -97,10 +101,9 @@ $categories = CVT_Settings::categories();
 					</div>
 
 					<div class="cvt-field">
-						<label for="timeframe"><?php esc_html_e( 'Desired Timeframe', 'corido-vendor-tracker' ); ?></label>
-						<input type="text" id="timeframe" name="timeframe" class="widefat"
-							value="<?php echo esc_attr( $entry->timeframe ?? '' ); ?>"
-							placeholder="<?php esc_attr_e( 'e.g. Within 2 weeks, ASAP, flexible', 'corido-vendor-tracker' ); ?>">
+						<label for="description"><?php esc_html_e( 'Description / Specifications', 'corido-vendor-tracker' ); ?></label>
+						<textarea id="description" name="description" rows="4" class="widefat"
+							placeholder="<?php esc_attr_e( 'Brand, model, condition preference, size, colour, any specific requirements…', 'corido-vendor-tracker' ); ?>"><?php echo esc_textarea( $entry->description ?? '' ); ?></textarea>
 					</div>
 
 					<div class="cvt-field">

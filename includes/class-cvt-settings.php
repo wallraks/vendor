@@ -105,6 +105,53 @@ class CVT_Settings {
 	}
 
 	/**
+	 * Returns categories as a structured array with depth info for hierarchical selects.
+	 * Each element: { name: string, depth: int }
+	 * When the Listivo taxonomy is active, top-level terms are depth 0 and their
+	 * direct children are depth 1. Falls back to the manual textarea (all depth 0).
+	 *
+	 * @return array[]
+	 */
+	public static function categories_structured() {
+		$taxonomy = self::get_listivo_taxonomy();
+
+		if ( $taxonomy && taxonomy_exists( $taxonomy ) ) {
+			$terms = get_terms( array(
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
+			) );
+			if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+				$term_ids  = array_map( function( $t ) { return $t->term_id; }, $terms );
+				$by_parent = array();
+				foreach ( $terms as $term ) {
+					// Treat terms whose parent is not in our list as top-level.
+					$parent = in_array( $term->parent, $term_ids, false ) ? $term->parent : 0;
+					$by_parent[ $parent ][] = $term;
+				}
+
+				$result = array();
+				foreach ( $by_parent[0] ?? array() as $top ) {
+					$result[] = array( 'name' => $top->name, 'depth' => 0 );
+					foreach ( $by_parent[ $top->term_id ] ?? array() as $child ) {
+						$result[] = array( 'name' => $child->name, 'depth' => 1 );
+					}
+				}
+				return $result;
+			}
+		}
+
+		$raw    = get_option( 'cvt_categories', '' );
+		$lines  = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
+		$result = array();
+		foreach ( $lines as $line ) {
+			$result[] = array( 'name' => $line, 'depth' => 0 );
+		}
+		return $result;
+	}
+
+	/**
 	 * Returns the current category source status for the Settings UI.
 	 *
 	 * @return array { source: 'listivo'|'listivo_empty'|'manual', taxonomy: string, count: int }

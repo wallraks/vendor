@@ -20,19 +20,32 @@ $status_labels = array(
 	'fulfilled' => array( 'label' => 'Fulfilled', 'class' => 'cvt-badge--sold' ),
 	'cancelled' => array( 'label' => 'Cancelled', 'class' => 'cvt-badge--withdrawn' ),
 );
-$si   = $status_labels[ $entry->status ] ?? array( 'label' => $entry->status, 'class' => '' );
-$tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+$si        = $status_labels[ $entry->status ] ?? array( 'label' => $entry->status, 'class' => '' );
+$tags      = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+$req_items = CVT_Waitlist::decode_items( $entry->request_items ?? '' );
 
-$budget = '';
-if ( $entry->budget_min && $entry->budget_max ) {
-	$budget = CVT_Settings::format_currency( $entry->budget_min ) . ' – ' . CVT_Settings::format_currency( $entry->budget_max );
-} elseif ( $entry->budget_max ) {
-	$budget = __( 'Up to', 'corido-vendor-tracker' ) . ' ' . CVT_Settings::format_currency( $entry->budget_max );
-} elseif ( $entry->budget_min ) {
-	$budget = __( 'From', 'corido-vendor-tracker' ) . ' ' . CVT_Settings::format_currency( $entry->budget_min );
+// Fallback: build a pseudo-item from legacy fields when no request_items stored.
+if ( empty( $req_items ) && ( $entry->description || $entry->category || $entry->budget_max ) ) {
+	$legacy_budget = '';
+	if ( $entry->budget_min && $entry->budget_max ) {
+		$legacy_budget = CVT_Settings::format_currency( $entry->budget_min ) . ' – ' . CVT_Settings::format_currency( $entry->budget_max );
+	} elseif ( $entry->budget_max ) {
+		$legacy_budget = __( 'Up to', 'corido-vendor-tracker' ) . ' ' . CVT_Settings::format_currency( $entry->budget_max );
+	} elseif ( $entry->budget_min ) {
+		$legacy_budget = __( 'From', 'corido-vendor-tracker' ) . ' ' . CVT_Settings::format_currency( $entry->budget_min );
+	}
+
+	$req_items = array( array(
+		'desc'       => $entry->description ?? '',
+		'category'   => $entry->category ?? '',
+		'budget_max' => $entry->budget_max ?? null,
+		'qty'        => $entry->quantity ?? 1,
+		'_legacy'    => $legacy_budget, // pre-formatted range string for legacy entries
+	) );
 }
 
 $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
+$time_ago    = human_time_diff( strtotime( $entry->created_at ), current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'corido-vendor-tracker' );
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -61,7 +74,7 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 				<h2 class="cvt-card-title"><?php esc_html_e( 'Client Details', 'corido-vendor-tracker' ); ?></h2>
 				<div class="cvt-field-row">
 					<div class="cvt-field">
-						<label><?php esc_html_e( 'Client Name', 'corido-vendor-tracker' ); ?></label>
+						<label><?php esc_html_e( 'Name', 'corido-vendor-tracker' ); ?></label>
 						<p class="cvt-detail-value"><strong><?php echo esc_html( $entry->client_name ); ?></strong></p>
 					</div>
 					<div class="cvt-field">
@@ -83,7 +96,7 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 					<?php endif; ?>
 					<?php if ( $entry->timeframe ) : ?>
 					<div class="cvt-field">
-						<label><?php esc_html_e( 'Desired Timeframe', 'corido-vendor-tracker' ); ?></label>
+						<label><?php esc_html_e( 'Timeframe', 'corido-vendor-tracker' ); ?></label>
 						<p class="cvt-detail-value"><?php echo esc_html( $entry->timeframe ); ?></p>
 					</div>
 					<?php endif; ?>
@@ -91,25 +104,52 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 				<?php endif; ?>
 			</div>
 
-			<!-- Item request -->
+			<!-- Items requested -->
 			<div class="cvt-card">
-				<h2 class="cvt-card-title"><?php esc_html_e( 'Item Request', 'corido-vendor-tracker' ); ?></h2>
+				<h2 class="cvt-card-title"><?php esc_html_e( 'Items Requested', 'corido-vendor-tracker' ); ?></h2>
 
-				<div class="cvt-field-row">
-					<?php if ( $entry->category ) : ?>
-					<div class="cvt-field">
-						<label><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
-						<p class="cvt-detail-value"><span class="cvt-role-chip"><?php echo esc_html( $entry->category ); ?></span></p>
-					</div>
-					<?php endif; ?>
-					<div class="cvt-field">
-						<label><?php esc_html_e( 'Quantity', 'corido-vendor-tracker' ); ?></label>
-						<p class="cvt-detail-value"><?php echo esc_html( $entry->quantity ); ?></p>
-					</div>
-				</div>
+				<?php if ( ! empty( $req_items ) ) : ?>
+				<table class="cvt-items-view-table">
+					<thead>
+						<tr>
+							<th class="col-num">#</th>
+							<th><?php esc_html_e( 'Item / Description', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Budget (KES)', 'corido-vendor-tracker' ); ?></th>
+							<th><?php esc_html_e( 'Qty', 'corido-vendor-tracker' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $req_items as $idx => $it ) :
+							if ( isset( $it['_legacy'] ) ) {
+								// Legacy entry: show with pre-formatted budget string.
+								$budget_display = $it['_legacy'];
+							} else {
+								$budget_display = ! empty( $it['budget_max'] )
+									? CVT_Settings::format_currency( $it['budget_max'] )
+									: '—';
+							}
+						?>
+						<tr>
+							<td class="col-num"><?php echo esc_html( $idx + 1 ); ?></td>
+							<td><strong><?php echo esc_html( $it['desc'] ?: '—' ); ?></strong></td>
+							<td>
+								<?php if ( ! empty( $it['category'] ) ) : ?>
+								<span class="cvt-role-chip"><?php echo esc_html( $it['category'] ); ?></span>
+								<?php else : ?>
+								<span class="cvt-muted">—</span>
+								<?php endif; ?>
+							</td>
+							<td><?php echo esc_html( $budget_display ); ?></td>
+							<td><?php echo esc_html( $it['qty'] ?? 1 ); ?></td>
+						</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php endif; ?>
 
 				<?php if ( ! empty( $tags ) ) : ?>
-				<div class="cvt-field">
+				<div class="cvt-field" style="margin-top:16px;">
 					<label><?php esc_html_e( 'Tags', 'corido-vendor-tracker' ); ?></label>
 					<p class="cvt-detail-value">
 						<?php foreach ( $tags as $tag ) : ?>
@@ -119,22 +159,8 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 				</div>
 				<?php endif; ?>
 
-				<?php if ( $budget ) : ?>
-				<div class="cvt-field">
-					<label><?php esc_html_e( 'Budget (KES)', 'corido-vendor-tracker' ); ?></label>
-					<p class="cvt-detail-value"><?php echo esc_html( $budget ); ?></p>
-				</div>
-				<?php endif; ?>
-
-				<?php if ( $entry->description ) : ?>
-				<div class="cvt-field">
-					<label><?php esc_html_e( 'Description / Specifications', 'corido-vendor-tracker' ); ?></label>
-					<p class="cvt-detail-value"><?php echo nl2br( esc_html( $entry->description ) ); ?></p>
-				</div>
-				<?php endif; ?>
-
 				<?php if ( $entry->notes ) : ?>
-				<div class="cvt-field">
+				<div class="cvt-field" style="margin-top:12px;">
 					<label><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
 					<p class="cvt-detail-value cvt-muted"><?php echo nl2br( esc_html( $entry->notes ) ); ?></p>
 				</div>
@@ -148,7 +174,7 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 					<tbody>
 						<?php foreach ( $log_entries as $log ) : ?>
 						<tr>
-							<td class="cvt-log-date" style="white-space:nowrap;color:var(--cvt-muted);font-size:12px;">
+							<td style="white-space:nowrap;color:var(--cvt-muted);font-size:12px;width:1%;">
 								<?php echo esc_html( date_i18n( 'd M Y H:i', strtotime( $log->created_at ) ) ); ?>
 							</td>
 							<td><?php echo wp_kses( CVT_Activity_Log::describe( $log ), array( 'strong' => array() ) ); ?></td>
@@ -186,8 +212,10 @@ $log_entries = CVT_Activity_Log::get_for_entity( 'waitlist', $entry->id );
 				<h2 class="cvt-card-title"><?php esc_html_e( 'Assignment', 'corido-vendor-tracker' ); ?></h2>
 				<p class="cvt-muted" style="font-size:11px;margin-bottom:2px;"><?php esc_html_e( 'Agent', 'corido-vendor-tracker' ); ?></p>
 				<p><?php echo esc_html( $entry->agent_name ?: '—' ); ?></p>
-				<p class="cvt-muted" style="font-size:11px;margin-top:10px;margin-bottom:2px;"><?php esc_html_e( 'Date Added', 'corido-vendor-tracker' ); ?></p>
-				<p><?php echo esc_html( date_i18n( 'd M Y', strtotime( $entry->created_at ) ) ); ?></p>
+				<p class="cvt-muted" style="font-size:11px;margin-top:10px;margin-bottom:2px;"><?php esc_html_e( 'Added', 'corido-vendor-tracker' ); ?></p>
+				<p title="<?php echo esc_attr( date_i18n( 'd M Y H:i', strtotime( $entry->created_at ) ) ); ?>">
+					<?php echo esc_html( $time_ago ); ?>
+				</p>
 			</div>
 
 		</div><!-- .cvt-form-sidebar -->

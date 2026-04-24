@@ -6,6 +6,21 @@ $is_edit    = (bool) $entry;
 $title      = $is_edit ? __( 'Edit Entry', 'corido-vendor-tracker' ) : __( 'Add Waiting List Entry', 'corido-vendor-tracker' );
 $agents     = CVT_Roles::get_agents();
 $categories = CVT_Settings::categories_structured();
+
+// Pre-load items for the table: use request_items if set, else migrate old fields.
+$form_items = CVT_Waitlist::decode_items( $entry->request_items ?? '' );
+if ( empty( $form_items ) && $is_edit ) {
+	// Old entry — seed the first table row from legacy fields.
+	$form_items = array( array(
+		'desc'       => $entry->description ?? '',
+		'category'   => $entry->category ?? '',
+		'budget_max' => $entry->budget_max ?? null,
+		'qty'        => $entry->quantity ?? 1,
+	) );
+}
+if ( empty( $form_items ) ) {
+	$form_items = array( array( 'desc' => '', 'category' => '', 'budget_max' => null, 'qty' => 1 ) );
+}
 ?>
 <div class="wrap cvt-wrap">
 	<div class="cvt-page-header">
@@ -52,67 +67,79 @@ $categories = CVT_Settings::categories_structured();
 								value="<?php echo esc_attr( $entry->email ?? '' ); ?>">
 						</div>
 						<div class="cvt-field">
-							<label for="timeframe"><?php esc_html_e( 'Desired Timeframe', 'corido-vendor-tracker' ); ?></label>
+							<label for="timeframe"><?php esc_html_e( 'Timeframe', 'corido-vendor-tracker' ); ?></label>
 							<input type="text" id="timeframe" name="timeframe" class="widefat"
 								value="<?php echo esc_attr( $entry->timeframe ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'e.g. Within 2 weeks, ASAP, flexible', 'corido-vendor-tracker' ); ?>">
+								placeholder="<?php esc_attr_e( 'e.g. ASAP, within 2 weeks', 'corido-vendor-tracker' ); ?>">
 						</div>
 					</div>
 				</div>
 
-				<!-- Item request -->
+				<!-- Items requested -->
 				<div class="cvt-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Item Request', 'corido-vendor-tracker' ); ?></h2>
+					<h2 class="cvt-card-title"><?php esc_html_e( 'Items Requested', 'corido-vendor-tracker' ); ?></h2>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
-							<select id="category" name="category" class="widefat">
-								<option value=""><?php esc_html_e( '— Any category —', 'corido-vendor-tracker' ); ?></option>
-								<?php foreach ( $categories as $cat ) :
-									$prefix = $cat['depth'] > 0 ? str_repeat( "\u{00a0}", 3 ) . '↳ ' : '';
-								?>
-								<option value="<?php echo esc_attr( $cat['name'] ); ?>" <?php selected( $entry->category ?? '', $cat['name'] ); ?>>
-									<?php echo esc_html( $prefix . $cat['name'] ); ?>
-								</option>
+					<div class="cvt-items-table-wrap">
+						<table class="cvt-items-table" id="cvt-items-table">
+							<thead>
+								<tr>
+									<th class="col-desc"><?php esc_html_e( 'Item / Description', 'corido-vendor-tracker' ); ?> <span class="required">*</span></th>
+									<th class="col-cat"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></th>
+									<th class="col-budget"><?php esc_html_e( 'Budget (KES)', 'corido-vendor-tracker' ); ?></th>
+									<th class="col-qty"><?php esc_html_e( 'Qty', 'corido-vendor-tracker' ); ?></th>
+									<th class="col-del"></th>
+								</tr>
+							</thead>
+							<tbody id="cvt-items-body">
+								<?php foreach ( $form_items as $item ) : ?>
+								<tr class="cvt-item-row">
+									<td class="col-desc">
+										<input type="text" name="item_desc[]" class="widefat"
+											value="<?php echo esc_attr( $item['desc'] ?? '' ); ?>"
+											placeholder="<?php esc_attr_e( 'e.g. Samsung Washing Machine', 'corido-vendor-tracker' ); ?>">
+									</td>
+									<td class="col-cat">
+										<select name="item_category[]" class="widefat">
+											<option value=""><?php esc_html_e( '— Any —', 'corido-vendor-tracker' ); ?></option>
+											<?php foreach ( $categories as $cat ) :
+												$pfx = $cat['depth'] > 0 ? str_repeat( "\u{00a0}", 3 ) . '↳ ' : '';
+											?>
+											<option value="<?php echo esc_attr( $cat['name'] ); ?>"
+												<?php selected( $item['category'] ?? '', $cat['name'] ); ?>>
+												<?php echo esc_html( $pfx . $cat['name'] ); ?>
+											</option>
+											<?php endforeach; ?>
+										</select>
+									</td>
+									<td class="col-budget">
+										<input type="number" name="item_budget_max[]" min="0" step="1"
+											value="<?php echo esc_attr( $item['budget_max'] ?? '' ); ?>"
+											placeholder="<?php esc_attr_e( 'Max', 'corido-vendor-tracker' ); ?>">
+									</td>
+									<td class="col-qty">
+										<input type="number" name="item_qty[]" min="1" step="1"
+											value="<?php echo esc_attr( $item['qty'] ?? 1 ); ?>">
+									</td>
+									<td class="col-del">
+										<button type="button" class="cvt-item-del" title="<?php esc_attr_e( 'Remove row', 'corido-vendor-tracker' ); ?>">×</button>
+									</td>
+								</tr>
 								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="cvt-field">
-							<label for="quantity"><?php esc_html_e( 'Quantity Needed', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="quantity" name="quantity" class="widefat" min="1" step="1"
-								value="<?php echo esc_attr( $entry->quantity ?? 1 ); ?>">
-						</div>
+							</tbody>
+						</table>
 					</div>
+					<button type="button" class="button cvt-add-item-row" id="cvt-add-item-row">
+						+ <?php esc_html_e( 'Add Item', 'corido-vendor-tracker' ); ?>
+					</button>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="budget_min"><?php esc_html_e( 'Budget Min (KES)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="budget_min" name="budget_min" class="widefat" min="0" step="1"
-								value="<?php echo esc_attr( $entry->budget_min ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'No minimum', 'corido-vendor-tracker' ); ?>">
-						</div>
-						<div class="cvt-field">
-							<label for="budget_max"><?php esc_html_e( 'Budget Max (KES)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="budget_max" name="budget_max" class="widefat" min="0" step="1"
-								value="<?php echo esc_attr( $entry->budget_max ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'Maximum the client will pay', 'corido-vendor-tracker' ); ?>">
-						</div>
-					</div>
-
-					<div class="cvt-field">
-						<label for="description"><?php esc_html_e( 'Description / Specifications', 'corido-vendor-tracker' ); ?></label>
-						<textarea id="description" name="description" rows="4" class="widefat"
-							placeholder="<?php esc_attr_e( 'Brand, model, condition preference, size, colour, any specific requirements…', 'corido-vendor-tracker' ); ?>"><?php echo esc_textarea( $entry->description ?? '' ); ?></textarea>
-					</div>
-
-					<div class="cvt-field">
+					<!-- Tags -->
+					<?php
+					$defined_tags  = CVT_Settings::waitlist_tags();
+					$selected_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
+					?>
+					<?php if ( ! empty( $defined_tags ) ) : ?>
+					<div class="cvt-field" style="margin-top:20px;">
 						<label><?php esc_html_e( 'Tags', 'corido-vendor-tracker' ); ?></label>
-						<?php
-						$defined_tags  = CVT_Settings::waitlist_tags();
-						$selected_tags = CVT_Waitlist::decode_tags( $entry->tags ?? '' );
-						?>
-						<?php if ( ! empty( $defined_tags ) ) : ?>
 						<div class="cvt-tag-picker" id="cvt-tag-picker">
 							<?php foreach ( $defined_tags as $tag ) :
 								$checked = in_array( $tag, $selected_tags, true );
@@ -127,25 +154,14 @@ $categories = CVT_Settings::categories_structured();
 							<?php endforeach; ?>
 						</div>
 						<p class="description"><?php esc_html_e( 'Click to select. Click again to remove.', 'corido-vendor-tracker' ); ?></p>
-						<?php else : ?>
-						<p class="description">
-							<?php
-							printf(
-								wp_kses(
-									__( 'No tags defined yet. <a href="%s">Add tags in Settings → Waiting List Tags</a>.', 'corido-vendor-tracker' ),
-									array( 'a' => array( 'href' => array() ) )
-								),
-								esc_url( admin_url( 'admin.php?page=cvt-settings' ) )
-							);
-							?>
-						</p>
-						<?php endif; ?>
 					</div>
+					<?php endif; ?>
 
-					<div class="cvt-field">
+					<!-- Notes -->
+					<div class="cvt-field" style="margin-top:16px;">
 						<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
 						<textarea id="notes" name="notes" rows="3" class="widefat"
-							placeholder="<?php esc_attr_e( 'Source of lead, condition preferences, follow-up notes…', 'corido-vendor-tracker' ); ?>"><?php echo esc_textarea( $entry->notes ?? '' ); ?></textarea>
+							placeholder="<?php esc_attr_e( 'Source of lead, follow-up notes…', 'corido-vendor-tracker' ); ?>"><?php echo esc_textarea( $entry->notes ?? '' ); ?></textarea>
 					</div>
 				</div>
 
@@ -200,13 +216,41 @@ $categories = CVT_Settings::categories_structured();
 </div>
 <script>
 (function () {
-	document.querySelectorAll( '#cvt-tag-picker .cvt-tag-toggle' ).forEach( function ( label ) {
-		var cb = label.querySelector( 'input[type="checkbox"]' );
-		label.addEventListener( 'click', function ( e ) {
+	var tbody  = document.getElementById('cvt-items-body');
+	var addBtn = document.getElementById('cvt-add-item-row');
+
+	function attachDel(row) {
+		row.querySelector('.cvt-item-del').addEventListener('click', function () {
+			if (tbody.querySelectorAll('.cvt-item-row').length > 1) {
+				row.remove();
+			}
+		});
+	}
+
+	document.querySelectorAll('.cvt-item-row').forEach(attachDel);
+
+	if (addBtn) {
+		addBtn.addEventListener('click', function () {
+			var last = tbody.querySelector('.cvt-item-row:last-child');
+			var row  = last.cloneNode(true);
+			row.querySelectorAll('input').forEach(function (inp) {
+				inp.value = (inp.getAttribute('name') === 'item_qty[]') ? '1' : '';
+			});
+			row.querySelectorAll('select').forEach(function (sel) { sel.selectedIndex = 0; });
+			tbody.appendChild(row);
+			attachDel(row);
+			row.querySelector('input[name="item_desc[]"]').focus();
+		});
+	}
+
+	// Tag chip picker.
+	document.querySelectorAll('#cvt-tag-picker .cvt-tag-toggle').forEach(function (label) {
+		var cb = label.querySelector('input[type="checkbox"]');
+		label.addEventListener('click', function (e) {
 			e.preventDefault();
-			cb.checked = ! cb.checked;
-			label.classList.toggle( 'cvt-tag-toggle--on', cb.checked );
-		} );
-	} );
-}() );
+			cb.checked = !cb.checked;
+			label.classList.toggle('cvt-tag-toggle--on', cb.checked);
+		});
+	});
+}());
 </script>

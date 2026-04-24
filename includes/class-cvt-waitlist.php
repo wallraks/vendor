@@ -175,6 +175,47 @@ class CVT_Waitlist {
 	}
 
 	/**
+	 * Decode stored request_items JSON to a PHP array.
+	 * Each element: { desc, category, budget_max, qty }
+	 *
+	 * @param  string $raw JSON string from the DB column.
+	 * @return array[]
+	 */
+	public static function decode_items( $raw ) {
+		if ( ! $raw ) {
+			return array();
+		}
+		$decoded = json_decode( $raw, true );
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * Remove tags from all entries that are no longer in the defined tag list.
+	 *
+	 * @return int  Number of entries updated.
+	 */
+	public static function purge_unlisted_tags() {
+		global $wpdb;
+		$table   = CVT_DB::waitlist();
+		$defined = CVT_Settings::waitlist_tags();
+		$rows    = $wpdb->get_results( "SELECT id, tags FROM $table WHERE tags != ''" );
+		$updated = 0;
+
+		foreach ( $rows as $row ) {
+			$tags    = self::decode_tags( $row->tags );
+			$cleaned = array_values( array_intersect( $tags, $defined ) );
+			$new_val = $cleaned ? (string) wp_json_encode( $cleaned ) : '';
+
+			if ( $new_val !== $row->tags ) {
+				$wpdb->update( $table, array( 'tags' => $new_val ), array( 'id' => $row->id ) );
+				$updated++;
+			}
+		}
+
+		return $updated;
+	}
+
+	/**
 	 * Return a map of tag => count across waiting-list entries.
 	 * Counts only entries whose status matches $status (pass '' for all statuses).
 	 *
@@ -265,11 +306,38 @@ class CVT_Waitlist {
 			'timeframe'        => substr( sanitize_text_field( $data['timeframe'] ?? '' ), 0, 200 ),
 			'notes'            => sanitize_textarea_field( $data['notes'] ?? '' ),
 			'tags'             => self::normalize_tags( $data['tags'] ?? '' ),
+			'request_items'    => self::normalize_items( $data ),
 			'status'           => in_array( $data['status'] ?? 'open', $allowed_statuses, true )
 				? $data['status'] : 'open',
 			'matched_item_id'  => ! empty( $data['matched_item_id'] ) ? absint( $data['matched_item_id'] ) : null,
 			'assigned_agent_id' => ! empty( $data['assigned_agent_id'] ) ? absint( $data['assigned_agent_id'] ) : null,
 		);
+	}
+
+	/**
+	 * Build request_items JSON from parallel POST arrays (item_desc[], item_category[], …).
+	 * Returns '' if no valid rows were submitted.
+	 */
+	private static function normalize_items( array $data ) {
+		$descs = (array) ( $data['item_desc']       ?? array() );
+		$cats  = (array) ( $data['item_category']   ?? array() );
+		$buds  = (array) ( $data['item_budget_max'] ?? array() );
+		$qtys  = (array) ( $data['item_qty']        ?? array() );
+
+		$items = array();
+		foreach ( $descs as $i => $desc ) {
+			$desc = substr( sanitize_text_field( trim( $desc ) ), 0, 300 );
+			if ( $desc === '' ) {
+				continue;
+			}
+			$items[] = array(
+				'desc'       => $desc,
+				'category'   => substr( sanitize_text_field( $cats[ $i ] ?? '' ), 0, 100 ),
+				'budget_max' => ! empty( $buds[ $i ] ) ? max( 0, (float) $buds[ $i ] ) : null,
+				'qty'        => max( 1, absint( $qtys[ $i ] ?? 1 ) ),
+			);
+		}
+		return $items ? (string) wp_json_encode( $items ) : '';
 	}
 
 	/**

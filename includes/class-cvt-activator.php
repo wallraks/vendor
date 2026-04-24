@@ -71,6 +71,12 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_waitlist ADD COLUMN tags text NOT NULL DEFAULT '' AFTER notes" );
 		}
 
+		// Add request_items column to waitlist table if not present.
+		$ri_col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_waitlist LIKE 'request_items'" );
+		if ( ! $ri_col ) {
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_waitlist ADD COLUMN request_items text NOT NULL DEFAULT '' AFTER tags" );
+		}
+
 		// Add 'waitlist' to activity_log entity_type enum.
 		$act_col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_activity_log LIKE 'entity_type'" );
 		if ( $act_col && strpos( $act_col->Type, 'waitlist' ) === false ) {
@@ -192,6 +198,7 @@ class CVT_Activator {
 			timeframe        varchar(200) NOT NULL DEFAULT '',
 			notes            text,
 			tags             text NOT NULL DEFAULT '',
+			request_items    text NOT NULL DEFAULT '',
 			status           enum('open','matched','fulfilled','cancelled') NOT NULL DEFAULT 'open',
 			matched_item_id  bigint(20) UNSIGNED DEFAULT NULL,
 			assigned_agent_id bigint(20) UNSIGNED DEFAULT NULL,

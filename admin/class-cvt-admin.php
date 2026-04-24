@@ -24,6 +24,7 @@ class CVT_Admin {
 		add_action( 'admin_post_cvt_save_waitlist',       array( $this, 'handle_save_waitlist' ) );
 		add_action( 'admin_post_cvt_delete_waitlist',     array( $this, 'handle_delete_waitlist' ) );
 		add_action( 'admin_post_cvt_waitlist_mark',       array( $this, 'handle_waitlist_mark' ) );
+		add_action( 'admin_post_cvt_purge_waitlist_tags', array( $this, 'handle_purge_waitlist_tags' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -478,6 +479,21 @@ class CVT_Admin {
 			: admin_url( 'admin.php?page=cvt-waitlist' );
 
 		$this->redirect_with_notice( $redirect, __( 'Waiting list entry updated.', 'corido-vendor-tracker' ) );
+	}
+
+	public function handle_purge_waitlist_tags() {
+		check_admin_referer( 'cvt_purge_waitlist_tags' );
+		if ( ! current_user_can( 'cvt_manage_settings' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'corido-vendor-tracker' ) );
+		}
+		$count = CVT_Waitlist::purge_unlisted_tags();
+		$this->redirect_with_notice(
+			admin_url( 'admin.php?page=cvt-waitlist' ),
+			sprintf(
+				_n( 'Done — %d entry cleaned.', 'Done — %d entries cleaned.', $count, 'corido-vendor-tracker' ),
+				$count
+			)
+		);
 	}
 
 	// -------------------------------------------------------------------------

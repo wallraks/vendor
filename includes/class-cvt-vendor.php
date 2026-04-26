@@ -169,13 +169,14 @@ class CVT_Vendor {
 		global $wpdb;
 		$id = absint( $id );
 
-		if ( ! current_user_can( 'cvt_delete_vendors' ) ) {
-			return new WP_Error( 'permission', __( 'You do not have permission to delete vendors.', 'corido-vendor-tracker' ) );
-		}
-
 		$vendor = self::get( $id );
 		if ( ! $vendor ) {
 			return new WP_Error( 'not_found', __( 'Vendor not found.', 'corido-vendor-tracker' ) );
+		}
+
+		$is_own = ( (int) $vendor->created_by === get_current_user_id() );
+		if ( ! current_user_can( 'cvt_delete_vendors' ) && ! ( current_user_can( 'cvt_add_vendors' ) && $is_own ) ) {
+			return new WP_Error( 'permission', __( 'You do not have permission to delete this vendor.', 'corido-vendor-tracker' ) );
 		}
 
 		$wpdb->delete( CVT_DB::vendors(), array( 'id' => $id ), array( '%d' ) );

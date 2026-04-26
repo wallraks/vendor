@@ -703,6 +703,19 @@
 .cvt-delete-link { color: #d63638 !important; }
 .cvt-delete-link:hover { color: #b71c1c !important; }
 
+/* Redacted / privacy-blurred text shown to non-owner agents */
+.cvt-redacted {
+	display: inline-block;
+	color: var(--cvt-muted);
+	background: #f0f0f0;
+	border-radius: 3px;
+	padding: 1px 6px;
+	letter-spacing: 1px;
+	font-size: 12px;
+	cursor: default;
+	user-select: none;
+}
+
 .cvt-alert {
 	display: inline-flex;
 	align-items: center;

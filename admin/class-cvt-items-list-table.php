@@ -49,9 +49,11 @@ class CVT_Items_List_Table extends WP_List_Table {
 	}
 
 	protected function column_title( $item ) {
-		$view_url = admin_url( 'admin.php?page=cvt-items&action=view&id=' . $item->id );
-		$edit_url = admin_url( 'admin.php?page=cvt-items&action=edit&id=' . $item->id );
-		$del_url  = wp_nonce_url(
+		$is_admin  = current_user_can( 'cvt_manage_settings' );
+		$is_own    = ( (int) $item->created_by === get_current_user_id() );
+		$view_url  = admin_url( 'admin.php?page=cvt-items&action=view&id=' . $item->id );
+		$edit_url  = admin_url( 'admin.php?page=cvt-items&action=edit&id=' . $item->id );
+		$del_url   = wp_nonce_url(
 			admin_url( 'admin-post.php?action=cvt_delete_item&id=' . $item->id ),
 			'cvt_delete_item'
 		);
@@ -60,7 +62,7 @@ class CVT_Items_List_Table extends WP_List_Table {
 			'view' => '<a href="' . esc_url( $view_url ) . '">' . __( 'View', 'corido-vendor-tracker' ) . '</a>',
 			'edit' => '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'corido-vendor-tracker' ) . '</a>',
 		);
-		if ( current_user_can( 'cvt_delete_items' ) ) {
+		if ( $is_admin || ( current_user_can( 'cvt_add_items' ) && $is_own ) ) {
 			$actions['delete'] = '<a href="' . esc_url( $del_url ) . '" class="cvt-delete-link">'
 				. __( 'Delete', 'corido-vendor-tracker' ) . '</a>';
 		}
@@ -70,6 +72,14 @@ class CVT_Items_List_Table extends WP_List_Table {
 	}
 
 	protected function column_vendor_name( $item ) {
+		$is_admin = current_user_can( 'cvt_manage_settings' );
+		$is_own   = ( (int) $item->created_by === get_current_user_id() );
+
+		if ( ! $is_admin && ! $is_own ) {
+			$blurred = mb_substr( $item->vendor_name ?: 'V', 0, 1 ) . '××××';
+			return '<span class="cvt-redacted" title="' . esc_attr__( 'Only visible to the agent who added this item', 'corido-vendor-tracker' ) . '">' . esc_html( $blurred ) . '</span>';
+		}
+
 		$url = admin_url( 'admin.php?page=cvt-vendors&action=view&id=' . $item->vendor_id );
 		return '<a href="' . esc_url( $url ) . '">' . esc_html( $item->vendor_name ?: '—' ) . '</a>';
 	}

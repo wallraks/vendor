@@ -43,6 +43,8 @@ class CVT_Vendors_List_Table extends WP_List_Table {
 	}
 
 	protected function column_name( $item ) {
+		$is_admin = current_user_can( 'cvt_manage_settings' );
+		$is_own   = ( (int) $item->created_by === get_current_user_id() );
 		$view_url = admin_url( 'admin.php?page=cvt-vendors&action=view&id=' . $item->id );
 		$edit_url = admin_url( 'admin.php?page=cvt-vendors&action=edit&id=' . $item->id );
 		$del_url  = wp_nonce_url(
@@ -54,14 +56,33 @@ class CVT_Vendors_List_Table extends WP_List_Table {
 			'view' => '<a href="' . esc_url( $view_url ) . '">' . __( 'View', 'corido-vendor-tracker' ) . '</a>',
 			'edit' => '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'corido-vendor-tracker' ) . '</a>',
 		);
-
-		if ( current_user_can( 'cvt_delete_vendors' ) ) {
+		if ( $is_admin || ( current_user_can( 'cvt_add_vendors' ) && $is_own ) ) {
 			$actions['delete'] = '<a href="' . esc_url( $del_url ) . '" class="cvt-delete-link">'
 				. __( 'Delete', 'corido-vendor-tracker' ) . '</a>';
 		}
 
+		if ( ! $is_admin && ! $is_own ) {
+			$blurred = mb_substr( $item->name ?: 'V', 0, 1 ) . '××××';
+			return '<span class="cvt-redacted" title="' . esc_attr__( 'Only visible to the agent who added this vendor', 'corido-vendor-tracker' ) . '">' . esc_html( $blurred ) . '</span>'
+				. $this->row_actions( $actions );
+		}
+
 		return '<strong><a href="' . esc_url( $view_url ) . '">' . esc_html( $item->name ) . '</a></strong>'
 			. $this->row_actions( $actions );
+	}
+
+	protected function column_phone_primary( $item ) {
+		$is_admin = current_user_can( 'cvt_manage_settings' );
+		$is_own   = ( (int) $item->created_by === get_current_user_id() );
+
+		if ( ! $is_admin && ! $is_own ) {
+			$blurred = mb_substr( $item->phone_primary ?: '0', 0, 3 ) . '×××××';
+			return '<span class="cvt-redacted">' . esc_html( $blurred ) . '</span>';
+		}
+
+		return $item->phone_primary
+			? '<a href="tel:' . esc_attr( $item->phone_primary ) . '">' . esc_html( $item->phone_primary ) . '</a>'
+			: '<span class="cvt-muted">—</span>';
 	}
 
 	protected function column_intake_channel( $item ) {

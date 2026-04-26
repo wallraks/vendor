@@ -305,7 +305,8 @@ class CVT_Item {
 	}
 
 	/**
-	 * Permanently delete an item (admin only).
+	 * Permanently delete an item.
+	 * Allowed for users with cvt_delete_items OR the user who created the item.
 	 *
 	 * @param  int        $id
 	 * @return true|WP_Error
@@ -314,13 +315,14 @@ class CVT_Item {
 		global $wpdb;
 		$id = absint( $id );
 
-		if ( ! current_user_can( 'cvt_delete_items' ) ) {
-			return new WP_Error( 'permission', __( 'You do not have permission to delete items.', 'corido-vendor-tracker' ) );
-		}
-
 		$item = self::get( $id );
 		if ( ! $item ) {
 			return new WP_Error( 'not_found', __( 'Item not found.', 'corido-vendor-tracker' ) );
+		}
+
+		$is_own = ( (int) $item->created_by === get_current_user_id() );
+		if ( ! current_user_can( 'cvt_delete_items' ) && ! ( current_user_can( 'cvt_add_items' ) && $is_own ) ) {
+			return new WP_Error( 'permission', __( 'You do not have permission to delete this item.', 'corido-vendor-tracker' ) );
 		}
 
 		$wpdb->delete( CVT_DB::items(), array( 'id' => $id ), array( '%d' ) );

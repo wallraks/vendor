@@ -233,12 +233,14 @@ $status_labels = array(
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-waitlist&action=edit&id=' . $entry->id ) ); ?>" class="button button-small">
 							<?php esc_html_e( 'Edit', 'corido-vendor-tracker' ); ?>
 						</a>
+						<?php if ( $is_admin_user || ( (int) $entry->created_by === get_current_user_id() ) ) : ?>
 						<a href="<?php echo esc_url( wp_nonce_url(
 							admin_url( 'admin-post.php?action=cvt_delete_waitlist&id=' . $entry->id ),
 							'cvt_delete_waitlist'
 						) ); ?>" class="button button-small cvt-delete-link">
 							<?php esc_html_e( 'Delete', 'corido-vendor-tracker' ); ?>
 						</a>
+						<?php endif; ?>
 					</td>
 				</tr>
 				<?php endforeach; ?>

@@ -145,14 +145,18 @@ class CVT_Waitlist {
 		global $wpdb;
 		$id = absint( $id );
 
-		if ( ! current_user_can( 'cvt_add_items' ) ) {
-			return new WP_Error( 'permission', __( 'You do not have permission to delete this entry.', 'corido-vendor-tracker' ) );
-		}
-		if ( ! self::get( $id ) ) {
+		$entry = self::get( $id );
+		if ( ! $entry ) {
 			return new WP_Error( 'not_found', __( 'Waiting list entry not found.', 'corido-vendor-tracker' ) );
 		}
 
+		$is_own = ( (int) $entry->created_by === get_current_user_id() );
+		if ( ! current_user_can( 'cvt_manage_settings' ) && ! ( current_user_can( 'cvt_add_items' ) && $is_own ) ) {
+			return new WP_Error( 'permission', __( 'You do not have permission to delete this entry.', 'corido-vendor-tracker' ) );
+		}
+
 		$wpdb->delete( CVT_DB::waitlist(), array( 'id' => $id ), array( '%d' ) );
+		CVT_Activity_Log::log( 'waitlist', $id, 'deleted', (array) $entry, null );
 		return true;
 	}
 

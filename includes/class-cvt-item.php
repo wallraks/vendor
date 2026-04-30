@@ -325,6 +325,9 @@ class CVT_Item {
 			return new WP_Error( 'permission', __( 'You do not have permission to delete this item.', 'corido-vendor-tracker' ) );
 		}
 
+		// Delete pending payouts for this item — paid payouts are kept for financial history.
+		$wpdb->delete( CVT_DB::payouts(), array( 'item_id' => $id, 'status' => 'pending' ), array( '%d', '%s' ) );
+
 		$wpdb->delete( CVT_DB::items(), array( 'id' => $id ), array( '%d' ) );
 		$wpdb->delete( CVT_DB::images(), array( 'item_id' => $id ), array( '%d' ) );
 		CVT_Activity_Log::log( 'item', $id, 'deleted', (array) $item, null );

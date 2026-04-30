@@ -83,6 +83,12 @@ class CVT_Activator {
 			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_activity_log MODIFY entity_type enum('vendor','item','payout','waitlist') NOT NULL" );
 		}
 
+		// Add item_title snapshot column to payouts table if not present.
+		$it_col = $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}cvt_payouts LIKE 'item_title'" );
+		if ( ! $it_col ) {
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cvt_payouts ADD COLUMN item_title text NOT NULL DEFAULT '' AFTER vendor_id" );
+		}
+
 		// Re-register native roles so capability changes take effect immediately.
 		CVT_Roles::register();
 		CVT_Roles::sync_external_roles();
@@ -167,6 +173,7 @@ class CVT_Activator {
 			id                bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			item_id           bigint(20) UNSIGNED NOT NULL,
 			vendor_id         bigint(20) UNSIGNED NOT NULL,
+			item_title        text NOT NULL DEFAULT '',
 			selling_price     decimal(12,2) NOT NULL DEFAULT 0.00,
 			commission_rate   decimal(5,2) NOT NULL DEFAULT 0.00,
 			commission_amount decimal(12,2) NOT NULL DEFAULT 0.00,

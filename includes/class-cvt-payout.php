@@ -45,6 +45,7 @@ class CVT_Payout {
 			array(
 				'item_id'           => $item_id,
 				'vendor_id'         => absint( $item->vendor_id ),
+				'item_title'        => sanitize_text_field( $item->title ),
 				'selling_price'     => $item->selling_price,
 				'commission_rate'   => $rate,
 				'commission_amount' => $commission,
@@ -53,7 +54,7 @@ class CVT_Payout {
 				'created_at'        => CVT_DB::now(),
 				'updated_at'        => CVT_DB::now(),
 			),
-			array( '%d', '%d', '%f', '%f', '%f', '%f', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%f', '%f', '%f', '%f', '%s', '%s', '%s' )
 		);
 
 		$id = (int) $wpdb->insert_id;
@@ -142,7 +143,7 @@ class CVT_Payout {
 		global $wpdb;
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT p.*, v.name AS vendor_name, i.title AS item_title,
+				"SELECT p.*, v.name AS vendor_name, COALESCE(i.title, p.item_title) AS item_title,
 				 u.display_name AS processed_by_name
 				 FROM %i p
 				 LEFT JOIN {$wpdb->prefix}cvt_vendors v ON v.id = p.vendor_id
@@ -180,7 +181,7 @@ class CVT_Payout {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '( v.name LIKE %s OR i.title LIKE %s )';
+			$where[]  = '( v.name LIKE %s OR COALESCE(i.title, p.item_title) LIKE %s )';
 			$params[] = $like;
 			$params[] = $like;
 		}
@@ -210,7 +211,7 @@ class CVT_Payout {
 			? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
 			: $wpdb->get_var( $count_sql ) );
 
-		$select_sql = "SELECT p.*, v.name AS vendor_name, i.title AS item_title, u.display_name AS processed_by_name
+		$select_sql = "SELECT p.*, v.name AS vendor_name, COALESCE(i.title, p.item_title) AS item_title, u.display_name AS processed_by_name
 			FROM $tables
 			WHERE $where_sql
 			ORDER BY p.$orderby $order

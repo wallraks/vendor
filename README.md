@@ -306,6 +306,8 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `quantity` | int UNSIGNED | default 1 |
 | `timeframe` | varchar(200) | nullable, e.g. "within 2 weeks" |
 | `notes` | text | internal agent notes |
+| `tags` | text | JSON array of tag strings |
+| `request_items` | text | JSON array of item rows `[{desc, category, budget_max, qty}]` |
 | `status` | enum | open, matched, fulfilled, cancelled |
 | `matched_item_id` | bigint → cvt_items.id | nullable, set when matched |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
@@ -327,6 +329,7 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `id` | bigint UNSIGNED PK | |
 | `item_id` | bigint → cvt_items.id | |
 | `vendor_id` | bigint → cvt_vendors.id | |
+| `item_title` | text | **snapshotted at payout creation** — preserved after item deletion |
 | `selling_price` | decimal(12,2) | |
 | `commission_rate` | decimal(5,2) | **snapshotted at time of sale** |
 | `commission_amount` | decimal(12,2) | |
@@ -342,7 +345,7 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | Column | Type | Notes |
 |---|---|---|
 | `id` | bigint UNSIGNED PK | |
-| `entity_type` | enum | vendor, item, payout |
+| `entity_type` | enum | vendor, item, payout, waitlist |
 | `entity_id` | bigint | FK to the relevant table |
 | `action` | varchar(100) | e.g. `created`, `status_changed`, `payout_marked_paid` |
 | `old_value` | longtext | JSON snapshot of previous state |
@@ -367,7 +370,8 @@ corido-vendor-tracker/
 │   ├── class-cvt-vendor.php            # Vendor model (CRUD, search, capability checks)
 │   ├── class-cvt-item.php              # Item model (CRUD, status transitions, images)
 │   ├── class-cvt-payout.php            # Payout creation, mark-paid, calculations
-│   ├── class-cvt-waitlist.php          # Waiting list model (CRUD, match detection)
+│   ├── class-cvt-waitlist.php          # Waiting list model (CRUD, tag purge, match detection)
+│   ├── class-cvt-rest-api.php          # REST API — corido/v1 namespace, five endpoints
 │   └── class-cvt-roles.php             # Custom role and capability registration
 │
 ├── admin/
@@ -390,8 +394,9 @@ corido-vendor-tracker/
 │   │   ├── payouts/
 │   │   │   └── list.php                # Payouts list with pending total alert
 │   │   ├── waitlist/
-│   │   │   ├── list.php                # Waiting list entries with filters
-│   │   │   └── form.php                # Add / edit waiting list entry
+│   │   │   ├── list.php                # Waiting list entries with tag filter bar
+│   │   │   ├── form.php                # Add / edit entry with multi-item table
+│   │   │   └── view.php                # Read-only entry detail (access logged)
 │   │   ├── settings.php                # Commission rate, categories, agent overview
 │   │   └── reports.php                 # Monthly reports + CSV export
 │   │
@@ -460,6 +465,111 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 ---
 
 ## Changelog
+
+### 1.7.9 — REST API (`corido/v1`)
+
+**New features**
+- New class `includes/class-cvt-rest-api.php` registers five endpoints under `/wp-json/corido/v1/`:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/vendors` | Paginated vendor list; supports `page`, `per_page` (max 100), `s` (name/phone/email search) |
+| `POST` | `/vendors` | Create vendor; include `listing_title` to auto-create a linked `cvt_items` record in one request |
+| `GET` | `/vendors/{id}` | Full vendor record plus all their items |
+| `PATCH` | `/vendors/{id}` | Partial update — only fields supplied are changed |
+| `POST` | `/vendors/{id}/items` | Add an item to an existing vendor |
+
+- All routes require `current_user_can('edit_posts')` (401 if not logged in, 403 if insufficient capability).
+- Every mutation is logged to `cvt_activity_log` with the same structure as admin-UI actions.
+- `listing_id` is stored in the item's notes field as `Listivo listing ID: {value}` (no dedicated column required).
+- DB errors surface in the response body alongside the relevant HTTP status code.
+
+---
+
+### 1.7.8 — Uniform own-record delete for waitlist
+
+- `CVT_Waitlist::delete()` now requires the caller to be the entry's creator (`cvt_add_items` + ownership) or an admin (`cvt_manage_settings`) — matching the same pattern already used for items and vendors.
+- Waitlist list view hides the **Delete** button for entries the current user did not create.
+- Deletions are now logged to the activity log.
+
+---
+
+### 1.7.7 — Payout item title snapshot; cascade delete on item removal
+
+**New features**
+- `item_title` column added to `wp_cvt_payouts` — the item name is snapshotted at payout creation time so financial records remain accurate after the item is deleted.
+- `CVT_Payout::get()` and `get_all()` use `COALESCE(i.title, p.item_title)` so the correct name always appears regardless of whether the item still exists.
+- `CVT_Item::delete()` now cascade-deletes any **pending** payout records before removing the item. Paid payouts are intentionally preserved as an unalterable financial audit trail.
+
+**Database changes**
+- `wp_cvt_payouts`: added `item_title text NOT NULL DEFAULT ''`
+- DB version bumped to 12; `maybe_upgrade()` applies a guarded `ALTER TABLE` on existing installs.
+
+---
+
+### 1.7.6 — Privacy blurring & own-record delete
+
+**New features**
+- **Privacy blurring in lists:** non-admin agents see other agents' vendor names blurred (`J××××`) in the items list, and both vendor name and phone blurred in the vendors list. Admins always see full detail.
+- **Own-record delete:** any agent can now delete vendors and items they personally created. The **Delete** row action appears in both list tables for own records. Admins can delete anything as before.
+
+---
+
+### 1.7.5 — Waitlist: tag filter bar, multi-item form, relative dates
+
+**New features**
+- **Tag filter pill bar** — clickable tag pills with entry counts appear above the waitlist table; selecting a pill filters the list instantly.
+- **Purge Old Tags** — admin-only button that strips any tag not currently in the defined tag list from all existing entries; returns a count of updated rows.
+- **Relative dates** — the *Added* column now shows "3 days ago" style text; hover reveals the full date and time.
+- **Multi-item request table** — the waitlist form now uses a dynamic table (Description | Category | Budget | Qty | ×) instead of single fields. Rows are added with **+ Add Item** and removed with the × button. Data is stored as JSON in the `request_items` column.
+
+**Database changes**
+- `wp_cvt_waitlist`: added `request_items text NOT NULL DEFAULT ''`
+- DB version bumped to 11; `maybe_upgrade()` adds the column to existing installs.
+
+---
+
+### 1.7.4 — Waitlist: view page, privacy, compact form, category hierarchy
+
+**New features**
+- **View page** — read-only detail view for waitlist entries (`?action=view&id=`). Non-admin access is logged to the activity log.
+- **Client privacy** — non-admin agents see client name (`Jo×××`) and phone (`+25×××××`) blurred in the list; full data is visible on the view page (access logged).
+- **Compact form** — Email + Timeframe share a row; Budget Min + Budget Max share a row.
+- **Hierarchical category selects** — categories pulled from the Listivo taxonomy display with `↳` indented children.
+- **Demand by Tag** — only shows tags currently defined in Settings; historical free-text tags are filtered out.
+
+**Database changes**
+- `wp_cvt_activity_log`: `entity_type` enum extended to include `'waitlist'`
+- DB version bumped to 10.
+
+---
+
+### 1.7.3 — Role permissions: all agents can mark Sold and Withdrawn
+
+- `cvt_update_status_sold` and `cvt_update_status_withdrawn` capabilities granted to Junior Agents, removing the previous Senior Agent–only restriction on these transitions.
+
+---
+
+### 1.7.2 — Waitlist tags: predefined chip picker
+
+- Free-text tag input replaced with a chip picker built from the tag list defined in Settings.
+- Waitlist tag demand section on the waitlist page filtered to only show currently-defined tags.
+
+---
+
+### 1.7.1 — Waitlist tag demand & item form image sidebar
+
+- Tag demand summary moved to its own section below the entries table.
+- Item form images moved into a sidebar panel alongside deal and agent fields.
+
+---
+
+### 1.7.0 — Waitlist tags column
+
+- `tags` column added to `wp_cvt_waitlist` for storing per-entry tag arrays (JSON).
+- DB version bumped to 9.
+
+---
 
 ### 1.6.0 — Listing Deal Type
 

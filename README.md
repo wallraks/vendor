@@ -466,6 +466,13 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 
 ## Changelog
 
+### 1.8.0 — REST API: DELETE vendor endpoint
+
+**New endpoint**
+- `DELETE /wp-json/corido/v1/vendors/{id}` — permanently removes a vendor and all their items. Cascade order: item images → pending payouts → items → vendor record. Paid payouts are kept (financial history; item title already snapshotted). Returns `{ success, message, deleted_items }`.
+
+---
+
 ### 1.7.9 — REST API (`corido/v1`)
 
 **New features**

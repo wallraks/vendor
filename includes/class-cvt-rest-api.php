@@ -11,6 +11,7 @@ defined( 'ABSPATH' ) || exit;
  * GET    /corido/v1/vendors              — list vendors with pagination
  * GET    /corido/v1/vendors/{id}         — single vendor + their items
  * PATCH  /corido/v1/vendors/{id}         — update vendor fields
+ * DELETE /corido/v1/vendors/{id}         — delete vendor + all their items
  * POST   /corido/v1/vendors/{id}/items   — add item to existing vendor
  */
 class CVT_REST_API {
@@ -54,6 +55,11 @@ class CVT_REST_API {
 				'callback'            => array( __CLASS__, 'update_vendor' ),
 				'permission_callback' => array( __CLASS__, 'check_permission' ),
 				'args'                => self::vendor_args( false ),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => array( __CLASS__, 'delete_vendor' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
 			),
 		) );
 
@@ -343,6 +349,53 @@ class CVT_REST_API {
 		CVT_Activity_Log::log( 'vendor', $id, 'updated', (array) $vendor, $update );
 
 		return new WP_REST_Response( array( 'success' => true, 'message' => 'Vendor updated.' ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// DELETE /vendors/{id}
+	// -------------------------------------------------------------------------
+
+	public static function delete_vendor( $request ) {
+		global $wpdb;
+
+		$id     = absint( $request->get_param( 'id' ) );
+		$vendor = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cvt_vendors WHERE id = %d",
+			$id
+		) );
+
+		if ( ! $vendor ) {
+			return new WP_Error( 'not_found', 'Vendor not found.', array( 'status' => 404 ) );
+		}
+
+		// Fetch all item IDs for this vendor before deletion so we can cascade.
+		$item_ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT id FROM {$wpdb->prefix}cvt_items WHERE vendor_id = %d",
+			$id
+		) );
+
+		// Cascade: remove images, pending payouts, and items.
+		// Paid payouts are kept — they are financial history and now carry an item_title snapshot.
+		foreach ( $item_ids as $item_id ) {
+			$item_id = (int) $item_id;
+			$wpdb->delete( CVT_DB::images(),  array( 'item_id' => $item_id ),               array( '%d' ) );
+			$wpdb->delete( CVT_DB::payouts(), array( 'item_id' => $item_id, 'status' => 'pending' ), array( '%d', '%s' ) );
+			CVT_Activity_Log::log( 'item', $item_id, 'deleted', array( 'vendor_id' => $id ), null );
+		}
+
+		if ( $item_ids ) {
+			$ids_sql = implode( ',', array_map( 'absint', $item_ids ) );
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}cvt_items WHERE id IN ($ids_sql)" );
+		}
+
+		$wpdb->delete( CVT_DB::vendors(), array( 'id' => $id ), array( '%d' ) );
+		CVT_Activity_Log::log( 'vendor', $id, 'deleted', (array) $vendor, null );
+
+		return new WP_REST_Response( array(
+			'success'       => true,
+			'message'       => sprintf( 'Vendor and %d item(s) deleted.', count( $item_ids ) ),
+			'deleted_items' => count( $item_ids ),
+		), 200 );
 	}
 
 	// -------------------------------------------------------------------------

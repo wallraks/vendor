@@ -36,6 +36,10 @@ foreach ( $valid_next as $ns ) {
 $pipeline       = CVT_Settings::pipeline_stages();
 $current_index  = array_search( $item->status, $pipeline, true ); // false if withdrawn
 
+// Website listing state — is the Listivo listing flagged Sold on corido.co.ke?
+$item_sold_here = in_array( $item->status, CVT_Listivo_Sync::sold_statuses(), true );
+$sync_state     = CVT_Listivo_Sync::site_state( $item );
+
 // Payout record (if sold or closed).
 $payout = null;
 if ( in_array( $item->status, array( 'sold', 'closed' ), true ) ) {
@@ -372,6 +376,45 @@ $action_btn_class = array(
 							<a href="<?php echo esc_url( $item->listivo_listing_url ); ?>" target="_blank">
 								<?php esc_html_e( 'View on site', 'corido-vendor-tracker' ); ?> ↗
 							</a>
+							<?php if ( $sync_state['state'] === 'sold' ) : ?>
+							<span class="cvt-badge cvt-badge--sold" style="margin-left:8px;">
+								<?php esc_html_e( 'Marked Sold on site', 'corido-vendor-tracker' ); ?>
+							</span>
+							<?php elseif ( $sync_state['state'] === 'not_sold' ) : ?>
+							<span class="cvt-badge cvt-badge--posted" style="margin-left:8px;">
+								<?php esc_html_e( 'Live on site', 'corido-vendor-tracker' ); ?>
+							</span>
+							<?php elseif ( $sync_state['state'] === 'error' ) : ?>
+							<span class="cvt-badge cvt-badge--withdrawn" style="margin-left:8px;">
+								<?php esc_html_e( 'Not linked', 'corido-vendor-tracker' ); ?>
+							</span>
+							<?php endif; ?>
+
+							<?php if ( $sync_state['state'] === 'error' && $sync_state['message'] ) : ?>
+							<p class="description" style="margin:6px 0 0;"><?php echo esc_html( $sync_state['message'] ); ?></p>
+							<?php endif; ?>
+
+							<?php if ( $sync_state['can_sync'] && current_user_can( 'cvt_update_status_sold' ) ) : ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:6px;">
+								<?php wp_nonce_field( 'cvt_sync_listing' ); ?>
+								<input type="hidden" name="action" value="cvt_sync_listing">
+								<input type="hidden" name="item_id" value="<?php echo esc_attr( $item->id ); ?>">
+								<button type="submit" class="button button-small">
+									<?php
+									echo $item_sold_here
+										? esc_html__( 'Mark Sold on site', 'corido-vendor-tracker' )
+										: esc_html__( 'Remove Sold flag on site', 'corido-vendor-tracker' );
+									?>
+								</button>
+							</form>
+							<?php endif; ?>
+						</span>
+					</div>
+					<?php elseif ( $item_sold_here && $sync_state['state'] !== 'disabled' ) : ?>
+					<div class="cvt-info-row">
+						<span class="cvt-info-label"><?php esc_html_e( 'Website Listing', 'corido-vendor-tracker' ); ?></span>
+						<span class="cvt-info-value">
+							<?php esc_html_e( 'No listing URL saved — add the Listivo Listing URL to flag this item Sold on the website.', 'corido-vendor-tracker' ); ?>
 						</span>
 					</div>
 					<?php endif; ?>

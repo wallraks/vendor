@@ -14,6 +14,7 @@ Internal WordPress plugin for [Corido Marketplace](https://corido.co.ke) — a K
 - [Status Workflow](#status-workflow)
 - [Commission & Payout Model](#commission--payout-model)
 - [Listivo Compatibility](#listivo-compatibility)
+- [Website Sold Sync](#website-sold-sync)
 - [Database Schema](#database-schema)
 - [File Structure](#file-structure)
 - [Developer Notes](#developer-notes)
@@ -129,6 +130,7 @@ When an item is marked **Sold**, a payout record is auto-created. Go to the item
 ### Settings
 - Commission rate (configurable without code changes).
 - Category list (one per line, editable textarea).
+- Website sold sync — field key, sold value and optional label taxonomy, plus a one-click backfill for items that sold before the sync was switched on.
 - Agent accounts overview with role chips.
 - Status workflow reference card.
 
@@ -237,15 +239,38 @@ The commission rate is snapshotted — changing the rate in Settings does not al
 
 The plugin is intentionally isolated from Listivo's data model:
 
-- **No custom post types are registered.** All data lives in five dedicated `wp_cvt_*` tables. Listivo's `wp_posts`/`wp_postmeta` tables are untouched.
+- **No custom post types are registered.** All tracker data lives in five dedicated `wp_cvt_*` tables.
 - **CSS/JS assets load only on CVT admin pages** (`page=cvt-*`). They do not affect the front end or any other admin page.
 - **All CSS classes use the `.cvt-` prefix.** No style conflicts with Listivo's admin or front-end CSS.
 - **No global hooks.** The plugin does not hook into `save_post`, `wp_head`, or other wide-scope hooks.
 - **Capability names use the `cvt_` prefix.** No collision with Listivo's own capabilities or roles.
 
-**Listing URL field:** When an agent posts an item on the Corido website (as a Listivo listing), they paste the listing URL into the item's *Listivo Listing URL* field. The plugin stores it as a plain link — no sync, no dependency on Listivo's internal structure. This keeps the integration stable across Listivo theme updates.
+**Listing URL field:** When an agent posts an item on the Corido website (as a Listivo listing), they paste the listing URL into the item's *Listivo Listing URL* field. That link is the only thing tying a tracker item to a live listing.
 
-**Auto-sync (future):** If you want to auto-create Listivo listings when an item moves to *Posted*, that can be built as an optional add-on module that hooks into `CVT_Item::update_status()`. This is intentionally out of scope for v1 to avoid tight coupling.
+### Website sold sync
+
+Since v1.9.0, marking an item **Sold** also flags its listing on corido.co.ke. The listing stays published — it keeps its SEO value and shows buyers the item has gone — and only a sold flag is written.
+
+| | |
+|---|---|
+| **Trigger** | `CVT_Item::update_status()` and `CVT_Payout::mark_paid()` both fire `cvt_item_status_changed`; `CVT_Listivo_Sync` listens. |
+| **Marked sold when** | Item status becomes `sold` or `closed`. `sold → closed` changes nothing on the site — it is already flagged. |
+| **Un-marked when** | An admin reverses a sale (`sold → posted`, `inquiry_received` or `withdrawn`). |
+| **What is written** | The post meta key set in Settings (default `sold`), plus an optional taxonomy term for themes that render badges from a taxonomy. |
+| **Where it writes** | Only the single post the item's listing URL resolves to, and only when that post is the configured Listivo post type. |
+| **Skipped when** | The item has no listing URL, the URL points off-site, no listing matches it, or the listing's sold flag was set outside the tracker. |
+| **Audit trail** | Every attempt is written to the item's activity log (`listing_marked_sold`, `listing_unmarked_sold`, `listing_sync_failed`). |
+
+Before relying on it, open one listing you have already marked sold by hand, look at its Custom Fields panel, and copy the key Listivo uses into **Settings → Website Sold Sync**. The default (`sold`) matches a stock Listivo install.
+
+Then test on a single item — mark it Sold and reload the listing on the front end. The sync writes the field and clears the post cache, but a theme or CDN layer that keeps its own index of listing fields may need that index rebuilt before the badge appears. If the badge does not show, the key is wrong or the theme reads its sold state from somewhere else; nothing else in the tracker is affected.
+
+Two escape hatches:
+
+- **Per item** — the item detail screen shows whether the listing is flagged on the site, with a *Mark Sold on site* button when the two are out of step (for example, when the listing URL was pasted in after the sale).
+- **In bulk** — Settings offers a one-click backfill for items marked Sold before the sync existed.
+
+The sync never deletes a flag it did not set: the value found before the sync is stored in a `_cvt_sold_synced` marker and restored on reversal.
 
 ---
 
@@ -286,7 +311,7 @@ All tables use the site's table prefix (e.g. `wp_cvt_vendors`).
 | `status` | enum | under_review, posted, inquiry_received, sold, closed, withdrawn |
 | `assigned_agent_id` | bigint → wp_users.ID | nullable |
 | `agreement_attachment_id` | bigint → wp_posts.ID | nullable, signed consignment agreement |
-| `listivo_listing_url` | varchar(500) | manual paste, no sync |
+| `listivo_listing_url` | varchar(500) | manual paste; resolved to a live listing by the sold sync |
 | `date_received` / `date_posted` | date | nullable |
 | `notes` | text | |
 | `created_by` | bigint → wp_users.ID | |
@@ -372,6 +397,7 @@ corido-vendor-tracker/
 │   ├── class-cvt-payout.php            # Payout creation, mark-paid, calculations
 │   ├── class-cvt-waitlist.php          # Waiting list model (CRUD, tag purge, match detection)
 │   ├── class-cvt-rest-api.php          # REST API — corido/v1 namespace, five endpoints
+│   ├── class-cvt-listivo-sync.php      # Flags the live Listivo listing Sold when an item sells
 │   └── class-cvt-roles.php             # Custom role and capability registration
 │
 ├── admin/
@@ -397,7 +423,7 @@ corido-vendor-tracker/
 │   │   │   ├── list.php                # Waiting list entries with tag filter bar
 │   │   │   ├── form.php                # Add / edit entry with multi-item table
 │   │   │   └── view.php                # Read-only entry detail (access logged)
-│   │   ├── settings.php                # Commission rate, categories, agent overview
+│   │   ├── settings.php                # Commission rate, categories, sold sync, agent overview
 │   │   └── reports.php                 # Monthly reports + CSV export
 │   │
 │   ├── css/
@@ -446,9 +472,15 @@ Every database query uses `$wpdb->prepare()`. All view output uses `esc_html()`,
 
 All AJAX calls require the `cvt_ajax` nonce passed as `nonce`.
 
-### Extending with Listivo auto-sync
+### The `cvt_item_status_changed` action
 
-To auto-create a Listivo listing when an item moves to `Posted`, hook into the `CVT_Item::update_status()` method's side-effects. The cleanest approach is to add a WordPress action in a separate file:
+Fired at the end of `CVT_Item::update_status()`, and by `CVT_Payout::mark_paid()` for the automatic `sold → closed` step:
+
+```php
+do_action( 'cvt_item_status_changed', $item_id, $old_status, $new_status );
+```
+
+`CVT_Listivo_Sync` is the first consumer. Use the same hook to extend the workflow — for example, to auto-create a Listivo listing when an item moves to `Posted`:
 
 ```php
 // In a separate file (not in the core plugin).
@@ -460,11 +492,39 @@ add_action( 'cvt_item_status_changed', function( $item_id, $old_status, $new_sta
 }, 10, 3 );
 ```
 
-You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $new )` at the end of `CVT_Item::update_status()`.
+### Website sold sync internals
+
+`CVT_Listivo_Sync` (`includes/class-cvt-listivo-sync.php`):
+
+| Method | Purpose |
+|---|---|
+| `mark_sold( $item_id )` / `clear_sold( $item_id )` | Write or undo the sold flag; return the listing post ID or a `WP_Error`. |
+| `resolve_post_id( $item )` | `url_to_postid()` on the stored URL, falling back to a slug lookup scoped to the Listivo post type. Rejects off-site URLs and posts of the wrong type. |
+| `site_state( $item )` | Read-only state for the item detail screen: `disabled`, `no_url`, `error`, `sold`, `not_sold`, plus `can_sync`. |
+| `pending_items()` / `unsynced_count()` / `backfill()` | Find and fix items sold before the sync existed. The count is cached for five minutes. |
+
+Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key`, `cvt_sold_sync_meta_value`, `cvt_sold_sync_taxonomy`, `cvt_sold_sync_term`.
 
 ---
 
 ## Changelog
+
+### 1.9.0 — Mark items Sold on the website
+
+**New features**
+- Marking an item **Sold** now flags its Listivo listing on corido.co.ke. The listing stays published; only the sold flag is written, so the page keeps its SEO value and buyers can see the item has gone.
+- Reversing a sale (`sold → posted` / `inquiry_received` / `withdrawn`) removes the flag again. `sold → closed` is a no-op — the listing is already flagged.
+- New class `includes/class-cvt-listivo-sync.php`, driven by a new `cvt_item_status_changed` action fired from `CVT_Item::update_status()` and `CVT_Payout::mark_paid()`.
+- **Settings → Website Sold Sync**: on/off, the listing field key (default `sold`) and value (default `1`), and an optional taxonomy + term for themes that render badges from a taxonomy.
+- Settings also offers a one-click backfill for items that were marked Sold before the sync existed, and shows how many listings currently carry the flag.
+- The item detail screen shows whether the listing is flagged on the site, with a **Mark Sold on site** button (capability `cvt_update_status_sold`) when the tracker and the website disagree — for example when the listing URL was pasted in after the sale.
+
+**Safety**
+- Nothing is written unless the item's listing URL resolves to a post of the configured Listivo post type on this site. Off-site URLs, unmatched URLs and wrong post types are refused with a specific message.
+- A sold flag the tracker did not set is never deleted. The pre-sync value is kept in a `_cvt_sold_synced` marker and restored on reversal.
+- Every attempt is written to the item's activity log: `listing_marked_sold`, `listing_unmarked_sold`, `listing_sync_failed`.
+
+---
 
 ### 1.8.0 — REST API: DELETE vendor endpoint
 

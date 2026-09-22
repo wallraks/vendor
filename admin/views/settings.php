@@ -174,6 +174,116 @@ $source_info = CVT_Settings::categories_source_info();
 			</form>
 		</div>
 
+		<!-- Website Sold Sync -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Website Sold Sync', 'corido-vendor-tracker' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'cvt_save_settings' ); ?>
+				<input type="hidden" name="action" value="cvt_save_settings">
+				<input type="hidden" name="cvt_sold_sync_submitted" value="1">
+
+				<div class="cvt-field">
+					<label for="cvt_sold_sync_enabled">
+						<input type="checkbox" id="cvt_sold_sync_enabled" name="cvt_sold_sync_enabled" value="1"
+							<?php checked( CVT_Listivo_Sync::enabled() ); ?>>
+						<?php esc_html_e( 'Flag the website listing as Sold automatically', 'corido-vendor-tracker' ); ?>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'When an item is marked Sold, its Listivo listing on the website is flagged sold but stays published — buyers still find it, they just see it has gone. Reversing a sale removes the flag again. Items with no Listivo Listing URL are skipped.', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+
+				<div class="cvt-field">
+					<label for="cvt_sold_sync_meta_key">
+						<?php esc_html_e( 'Listing Field Key', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_sold_sync_meta_key" name="cvt_sold_sync_meta_key"
+						class="regular-text"
+						value="<?php echo esc_attr( CVT_Listivo_Sync::meta_key() ); ?>"
+						placeholder="sold">
+					<p class="description">
+						<?php esc_html_e( 'The custom field Listivo reads for its Sold state. Check one listing you have already marked sold by hand (Custom Fields panel) and copy the key it uses.', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+
+				<div class="cvt-field">
+					<label for="cvt_sold_sync_meta_value">
+						<?php esc_html_e( 'Sold Value', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_sold_sync_meta_value" name="cvt_sold_sync_meta_value"
+						class="small-text"
+						value="<?php echo esc_attr( CVT_Listivo_Sync::sold_value() ); ?>"
+						placeholder="1">
+					<p class="description">
+						<?php esc_html_e( 'Value written to that field when an item sells — usually 1.', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+
+				<div class="cvt-field">
+					<label for="cvt_sold_sync_taxonomy">
+						<?php esc_html_e( 'Sold Label Taxonomy (optional)', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_sold_sync_taxonomy" name="cvt_sold_sync_taxonomy"
+						class="regular-text"
+						value="<?php echo esc_attr( CVT_Listivo_Sync::taxonomy() ); ?>"
+						placeholder="listivo_label">
+					<p class="description">
+						<?php esc_html_e( 'Leave blank to use the field above only. If your theme shows badges from a taxonomy, put its slug here and a "Sold" term is added to the listing as well.', 'corido-vendor-tracker' ); ?>
+					</p>
+				</div>
+
+				<div class="cvt-field">
+					<label for="cvt_sold_sync_term">
+						<?php esc_html_e( 'Sold Term Slug', 'corido-vendor-tracker' ); ?>
+					</label>
+					<input type="text" id="cvt_sold_sync_term" name="cvt_sold_sync_term"
+						class="regular-text"
+						value="<?php echo esc_attr( CVT_Listivo_Sync::term_slug() ); ?>"
+						placeholder="sold">
+				</div>
+
+				<?php
+				global $wpdb;
+				$flagged_now = (int) $wpdb->get_var( $wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s",
+					CVT_Listivo_Sync::meta_key(),
+					CVT_Listivo_Sync::sold_value()
+				) );
+				$unsynced = CVT_Listivo_Sync::unsynced_count();
+				?>
+				<div class="cvt-taxonomy-status <?php echo $flagged_now ? 'cvt-taxonomy-status--connected' : 'cvt-taxonomy-status--warning'; ?>">
+					<span class="dashicons <?php echo $flagged_now ? 'dashicons-yes-alt' : 'dashicons-warning'; ?>"></span>
+					<?php echo esc_html( sprintf(
+						/* translators: 1: field key, 2: number of listings */
+						_n( '%2$d listing on the site currently carries "%1$s"', '%2$d listings on the site currently carry "%1$s"', $flagged_now, 'corido-vendor-tracker' ),
+						CVT_Listivo_Sync::meta_key(),
+						$flagged_now
+					) ); ?>
+				</div>
+
+				<button type="submit" class="button button-primary">
+					<?php esc_html_e( 'Save Sold Sync', 'corido-vendor-tracker' ); ?>
+				</button>
+			</form>
+
+			<?php if ( $unsynced > 0 ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:12px;">
+				<?php wp_nonce_field( 'cvt_backfill_sold_listings' ); ?>
+				<input type="hidden" name="action" value="cvt_backfill_sold_listings">
+				<p class="description" style="margin-bottom:8px;">
+					<?php echo esc_html( sprintf(
+						/* translators: %d: number of items */
+						_n( '%d item is marked Sold here but its listing is not flagged on the website.', '%d items are marked Sold here but their listings are not flagged on the website.', $unsynced, 'corido-vendor-tracker' ),
+						$unsynced
+					) ); ?>
+				</p>
+				<button type="submit" class="button">
+					<?php esc_html_e( 'Flag them on the website now', 'corido-vendor-tracker' ); ?>
+				</button>
+			</form>
+			<?php endif; ?>
+		</div>
+
 		<!-- Waiting List Tags -->
 		<div class="cvt-card">
 			<h2 class="cvt-card-title"><?php esc_html_e( 'Waiting List Tags', 'corido-vendor-tracker' ); ?></h2>
@@ -504,7 +614,7 @@ $source_info = CVT_Settings::categories_source_info();
 					<span class="cvt-badge cvt-badge--closed"><?php esc_html_e( 'Closed', 'corido-vendor-tracker' ); ?></span>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'Marking an item Sold auto-creates a pending payout record. Marking the payout Paid auto-closes the item. Withdrawn is a terminal state accessible from any open status (Senior Agent and above).', 'corido-vendor-tracker' ); ?>
+					<?php esc_html_e( 'Marking an item Sold auto-creates a pending payout record and flags its listing Sold on the website. Marking the payout Paid auto-closes the item. Withdrawn is a terminal state accessible from any open status (Senior Agent and above).', 'corido-vendor-tracker' ); ?>
 				</p>
 			</div>
 		</div>

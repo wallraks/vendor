@@ -25,6 +25,8 @@ class CVT_Admin {
 		add_action( 'admin_post_cvt_delete_waitlist',     array( $this, 'handle_delete_waitlist' ) );
 		add_action( 'admin_post_cvt_waitlist_mark',       array( $this, 'handle_waitlist_mark' ) );
 		add_action( 'admin_post_cvt_purge_waitlist_tags', array( $this, 'handle_purge_waitlist_tags' ) );
+		add_action( 'admin_post_cvt_sync_listing',           array( $this, 'handle_sync_listing' ) );
+		add_action( 'admin_post_cvt_backfill_sold_listings', array( $this, 'handle_backfill_sold_listings' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -277,6 +279,68 @@ class CVT_Admin {
 
 		$this->redirect_with_notice( admin_url( "admin.php?page=cvt-items&action=view&id=$item_id" ),
 			__( 'Status updated.', 'corido-vendor-tracker' ) );
+	}
+
+	/**
+	 * Push a single item's sold state to its Listivo listing on the website.
+	 * Used when the automatic sync could not run — typically because the
+	 * listing URL was pasted in after the item was already marked Sold.
+	 */
+	public function handle_sync_listing() {
+		check_admin_referer( 'cvt_sync_listing' );
+
+		if ( ! current_user_can( 'cvt_update_status_sold' ) ) {
+			wp_die( esc_html__( 'You do not have permission to update website listings.', 'corido-vendor-tracker' ) );
+		}
+
+		$item_id = absint( wp_unslash( $_POST['item_id'] ?? 0 ) );
+		$item    = CVT_Item::get( $item_id );
+
+		if ( ! $item ) {
+			$this->redirect_with_error( 'cvt-items', __( 'Item not found.', 'corido-vendor-tracker' ) );
+			return;
+		}
+
+		$is_sold = in_array( $item->status, CVT_Listivo_Sync::sold_statuses(), true );
+		$result  = $is_sold ? CVT_Listivo_Sync::mark_sold( $item_id ) : CVT_Listivo_Sync::clear_sold( $item_id );
+
+		CVT_Listivo_Sync::log_result( $item_id, $is_sold, $result );
+
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_with_error( 'cvt-items', $result->get_error_message(), "action=view&id=$item_id" );
+			return;
+		}
+
+		$this->redirect_with_notice(
+			admin_url( "admin.php?page=cvt-items&action=view&id=$item_id" ),
+			$is_sold
+				? __( 'Listing flagged Sold on the website.', 'corido-vendor-tracker' )
+				: __( 'Sold flag removed from the website listing.', 'corido-vendor-tracker' )
+		);
+	}
+
+	/**
+	 * Flag every already-sold item's listing in one pass — for items that sold
+	 * before the sync was switched on.
+	 */
+	public function handle_backfill_sold_listings() {
+		check_admin_referer( 'cvt_backfill_sold_listings' );
+
+		if ( ! current_user_can( 'cvt_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to change settings.', 'corido-vendor-tracker' ) );
+		}
+
+		$counts = CVT_Listivo_Sync::backfill();
+
+		$this->redirect_with_notice(
+			admin_url( 'admin.php?page=cvt-settings' ),
+			sprintf(
+				/* translators: 1: listings updated, 2: listings skipped */
+				__( 'Website sync finished — %1$d listing(s) flagged Sold, %2$d could not be updated (see each item\'s activity log).', 'corido-vendor-tracker' ),
+				$counts['synced'],
+				$counts['failed']
+			)
+		);
 	}
 
 	public function handle_save_payout() {

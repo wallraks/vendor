@@ -216,6 +216,18 @@ class CVT_Settings {
 			update_option( 'cvt_listivo_post_type', sanitize_key( $data['cvt_listivo_post_type'] ) );
 		}
 
+		// Sold-sync form submits a sentinel so an unchecked box reads as "off".
+		if ( isset( $data['cvt_sold_sync_submitted'] ) ) {
+			update_option( 'cvt_sold_sync_enabled', empty( $data['cvt_sold_sync_enabled'] ) ? 0 : 1 );
+			update_option( 'cvt_sold_sync_meta_key', CVT_Listivo_Sync::sanitize_meta_key( $data['cvt_sold_sync_meta_key'] ?? '' ) );
+
+			$sold_value = sanitize_text_field( $data['cvt_sold_sync_meta_value'] ?? '' );
+			update_option( 'cvt_sold_sync_meta_value', $sold_value !== '' ? $sold_value : '1' );
+
+			update_option( 'cvt_sold_sync_taxonomy', sanitize_key( $data['cvt_sold_sync_taxonomy'] ?? '' ) );
+			update_option( 'cvt_sold_sync_term', sanitize_title( $data['cvt_sold_sync_term'] ?? 'sold' ) );
+		}
+
 		// Roles form submits a sentinel field so we can detect "all unchecked".
 		if ( isset( $data['cvt_roles_submitted'] ) ) {
 			$roles = array_values( array_filter(

@@ -131,6 +131,15 @@ class CVT_Activity_Log {
 				$ref = esc_html( $new['reference'] ?? '' );
 				return "$actor marked payout as Paid" . ( $ref ? " (ref: <strong>$ref</strong>)" : '' ) . '.';
 
+			case 'listing_marked_sold':
+				return "$actor — website listing flagged <strong>Sold</strong> on corido.co.ke.";
+
+			case 'listing_unmarked_sold':
+				return "$actor — Sold flag removed from the website listing.";
+
+			case 'listing_sync_failed':
+				return "$actor — website listing could not be updated: " . esc_html( $log_entry->note );
+
 			case 'note_added':
 				return "$actor added a note.";
 

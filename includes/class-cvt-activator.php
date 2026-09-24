@@ -50,8 +50,9 @@ class CVT_Activator {
 		if ( false === get_option( 'cvt_sold_sync_enabled' ) ) {
 			update_option( 'cvt_sold_sync_enabled', 1 );
 		}
+		// Left blank on purpose: the sync detects the site's sold key itself.
 		if ( false === get_option( 'cvt_sold_sync_meta_key' ) ) {
-			update_option( 'cvt_sold_sync_meta_key', 'sold' );
+			update_option( 'cvt_sold_sync_meta_key', '' );
 		}
 		if ( false === get_option( 'cvt_sold_sync_meta_value' ) ) {
 			update_option( 'cvt_sold_sync_meta_value', '1' );

@@ -193,17 +193,51 @@ $source_info = CVT_Settings::categories_source_info();
 					</p>
 				</div>
 
+				<?php
+				$sold_key_set       = (string) get_option( 'cvt_sold_sync_meta_key', '' );
+				$sold_key_in_use    = CVT_Listivo_Sync::meta_key();
+				$sold_key_confirmed = CVT_Listivo_Sync::key_is_confirmed();
+				?>
 				<div class="cvt-field">
 					<label for="cvt_sold_sync_meta_key">
 						<?php esc_html_e( 'Listing Field Key', 'corido-vendor-tracker' ); ?>
 					</label>
 					<input type="text" id="cvt_sold_sync_meta_key" name="cvt_sold_sync_meta_key"
 						class="regular-text"
-						value="<?php echo esc_attr( CVT_Listivo_Sync::meta_key() ); ?>"
-						placeholder="sold">
+						value="<?php echo esc_attr( $sold_key_set ); ?>"
+						placeholder="<?php esc_attr_e( 'leave blank to detect automatically', 'corido-vendor-tracker' ); ?>">
 					<p class="description">
-						<?php esc_html_e( 'The custom field Listivo reads for its Sold state. Check one listing you have already marked sold by hand (Custom Fields panel) and copy the key it uses.', 'corido-vendor-tracker' ); ?>
+						<?php esc_html_e( 'The custom field Listivo reads for its Sold state. Leave this blank and the sync finds it: it looks for the key your existing listings already carry. Fill it in only to override that.', 'corido-vendor-tracker' ); ?>
 					</p>
+
+					<?php if ( $sold_key_set !== '' ) : ?>
+					<div class="cvt-taxonomy-status cvt-taxonomy-status--connected">
+						<span class="dashicons dashicons-yes-alt"></span>
+						<?php echo esc_html( sprintf(
+							/* translators: %s: meta key */
+							__( 'Using the key you set: %s', 'corido-vendor-tracker' ),
+							$sold_key_in_use
+						) ); ?>
+					</div>
+					<?php elseif ( $sold_key_confirmed ) : ?>
+					<div class="cvt-taxonomy-status cvt-taxonomy-status--connected">
+						<span class="dashicons dashicons-yes-alt"></span>
+						<?php echo esc_html( sprintf(
+							/* translators: %s: meta key */
+							__( 'Detected on your listings: %s', 'corido-vendor-tracker' ),
+							$sold_key_in_use
+						) ); ?>
+					</div>
+					<?php else : ?>
+					<div class="cvt-taxonomy-status cvt-taxonomy-status--warning">
+						<span class="dashicons dashicons-warning"></span>
+						<?php echo esc_html( sprintf(
+							/* translators: %s: meta key */
+							__( 'No sold field found on any listing yet, so the sync would fall back to "%s" — unverified. Mark one listing sold by hand, then reload this page: the field finder below will name the real key.', 'corido-vendor-tracker' ),
+							$sold_key_in_use
+						) ); ?>
+					</div>
+					<?php endif; ?>
 				</div>
 
 				<div class="cvt-field">
@@ -306,6 +340,97 @@ $source_info = CVT_Settings::categories_source_info();
 					<?php esc_html_e( 'Save Tags', 'corido-vendor-tracker' ); ?>
 				</button>
 			</form>
+		</div>
+
+		<!-- Sold Field Finder -->
+		<div class="cvt-card">
+			<h2 class="cvt-card-title"><?php esc_html_e( 'Sold Field Finder', 'corido-vendor-tracker' ); ?></h2>
+			<p class="description" style="margin-bottom:14px;">
+				<?php esc_html_e( 'Which custom field your listings use for their Sold state, read straight from the database. Listivo prefixes listing fields with the post type, so the bare key is rarely the right one. If a row shows a count above zero, that is the key to use.', 'corido-vendor-tracker' ); ?>
+			</p>
+
+			<?php
+			global $wpdb;
+			$sf_post_type = CVT_Settings::get_listivo_post_type();
+			$sf_in_use    = CVT_Listivo_Sync::meta_key();
+
+			// Every candidate, plus any listing field whose name mentions "sold".
+			$sf_rows = array();
+			foreach ( CVT_Listivo_Sync::candidate_keys() as $sf_key ) {
+				$sf_rows[ $sf_key ] = 0;
+			}
+
+			if ( $sf_post_type ) {
+				$sf_found = $wpdb->get_results( $wpdb->prepare(
+					"SELECT m.meta_key AS k, COUNT(*) AS c
+					 FROM {$wpdb->postmeta} m
+					 INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id
+					 WHERE p.post_type = %s AND m.meta_key LIKE %s
+					 GROUP BY m.meta_key
+					 ORDER BY c DESC
+					 LIMIT 40",
+					$sf_post_type,
+					'%' . $wpdb->esc_like( 'sold' ) . '%'
+				) );
+
+				foreach ( (array) $sf_found as $sf_row ) {
+					$sf_rows[ $sf_row->k ] = (int) $sf_row->c;
+				}
+			}
+
+			arsort( $sf_rows );
+			?>
+
+			<?php if ( ! $sf_post_type ) : ?>
+			<div class="cvt-taxonomy-status cvt-taxonomy-status--disconnected">
+				<span class="dashicons dashicons-dismiss"></span>
+				<?php esc_html_e( 'Set the Listivo listing post type above first — without it there are no listings to scan.', 'corido-vendor-tracker' ); ?>
+			</div>
+			<?php else : ?>
+			<table class="cvt-table widefat striped" style="font-size:12px;max-width:640px;">
+				<thead><tr>
+					<th><?php esc_html_e( 'Field Key', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Listings Carrying It', 'corido-vendor-tracker' ); ?></th>
+					<th><?php esc_html_e( 'Sample Value', 'corido-vendor-tracker' ); ?></th>
+				</tr></thead>
+				<tbody>
+				<?php foreach ( $sf_rows as $sf_key => $sf_count ) :
+					$sf_is_used = ( $sf_key === $sf_in_use );
+					$sf_sample  = '';
+					if ( $sf_count > 0 ) {
+						$sf_sample = (string) $wpdb->get_var( $wpdb->prepare(
+							"SELECT m.meta_value
+							 FROM {$wpdb->postmeta} m
+							 INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id
+							 WHERE p.post_type = %s AND m.meta_key = %s AND m.meta_value <> ''
+							 LIMIT 1",
+							$sf_post_type,
+							$sf_key
+						) );
+					}
+				?>
+				<tr <?php echo $sf_is_used ? 'style="background:#e8f5e9;"' : ''; ?>>
+					<td>
+						<code><?php echo esc_html( $sf_key ); ?></code>
+						<?php if ( $sf_is_used ) echo ' <span style="color:#2e7d32;font-weight:600;">← in use</span>'; ?>
+					</td>
+					<td><?php echo esc_html( number_format( $sf_count ) ); ?></td>
+					<td>
+						<?php
+						$sf_shown = strlen( $sf_sample ) > 40 ? substr( $sf_sample, 0, 40 ) . '…' : $sf_sample;
+						echo $sf_sample !== ''
+							? '<code>' . esc_html( $sf_shown ) . '</code>'
+							: '—';
+						?>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+			<p class="description" style="margin-top:10px;">
+				<?php esc_html_e( 'Copy the key with a count above zero into Listing Field Key, and its sample value into Sold Value. If every count is zero, no listing has been marked sold yet — do one by hand and reload.', 'corido-vendor-tracker' ); ?>
+			</p>
+			<?php endif; ?>
 		</div>
 
 		<!-- Listivo Slug Finder -->

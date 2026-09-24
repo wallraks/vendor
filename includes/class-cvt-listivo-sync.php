@@ -39,9 +39,98 @@ class CVT_Listivo_Sync {
 		return (bool) get_option( 'cvt_sold_sync_enabled', 1 );
 	}
 
-	/** Listing meta key that holds the sold flag. */
+	/**
+	 * Candidate keys for Listivo's sold flag, in priority order.
+	 *
+	 * Listivo's CT framework prefixes listing fields with the post type, so the
+	 * bare key is rarely right — compare the price lookup in
+	 * admin/class-cvt-ajax.php, which walks the same shape of list. Leaving the
+	 * setting blank makes the sync detect which of these the site actually uses.
+	 */
+	public static function candidate_keys() {
+		return array( '_listivo1_listing_sold', 'listivo1_listing_sold', '_sold', 'sold' );
+	}
+
+	/** Cached result of scanning the site for its sold key. */
+	const KEY_CACHE = 'cvt_sold_sync_detected_key';
+
+	/**
+	 * Listing meta key that holds the sold flag. An explicit Settings value wins;
+	 * otherwise the key is detected from the listings already on the site.
+	 */
 	public static function meta_key() {
-		return self::sanitize_meta_key( get_option( 'cvt_sold_sync_meta_key', 'sold' ) );
+		$configured = (string) get_option( 'cvt_sold_sync_meta_key', '' );
+		if ( trim( $configured ) !== '' ) {
+			return self::sanitize_meta_key( $configured );
+		}
+		return self::detected_key()['key'];
+	}
+
+	/** Is the key in use one we actually found on a listing, or just the fallback? */
+	public static function key_is_confirmed() {
+		if ( trim( (string) get_option( 'cvt_sold_sync_meta_key', '' ) ) !== '' ) {
+			return true; // An admin set it deliberately.
+		}
+		return (bool) self::detected_key()['confirmed'];
+	}
+
+	/**
+	 * Detect the site's sold key, cached for a day.
+	 *
+	 * @return array { key: string, confirmed: bool }
+	 */
+	public static function detected_key() {
+		$cached = get_transient( self::KEY_CACHE );
+		if ( is_array( $cached ) && ! empty( $cached['key'] ) ) {
+			return $cached;
+		}
+
+		$found  = self::scan_for_sold_key();
+		$result = array(
+			'key'       => $found !== '' ? $found : self::candidate_keys()[0],
+			'confirmed' => $found !== '',
+		);
+
+		set_transient( self::KEY_CACHE, $result, DAY_IN_SECONDS );
+
+		return $result;
+	}
+
+	/** Forget the detected key — call after Settings or the listing set changes. */
+	public static function bust_key_cache() {
+		delete_transient( self::KEY_CACHE );
+	}
+
+	/**
+	 * Which candidate key actually appears on this site's Listivo listings?
+	 * Any listing already marked sold by hand carries it.
+	 *
+	 * @return string  The key, or '' when none of the candidates is present.
+	 */
+	public static function scan_for_sold_key() {
+		global $wpdb;
+
+		$post_type = CVT_Settings::get_listivo_post_type();
+		if ( ! $post_type ) {
+			return '';
+		}
+
+		foreach ( self::candidate_keys() as $key ) {
+			$exists = $wpdb->get_var( $wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->postmeta} m
+				 INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id
+				 WHERE m.meta_key = %s AND p.post_type = %s
+				 LIMIT 1",
+				$key,
+				$post_type
+			) );
+
+			if ( $exists ) {
+				return $key;
+			}
+		}
+
+		return '';
 	}
 
 	/** Value written to that meta key when an item sells. */
@@ -70,8 +159,7 @@ class CVT_Listivo_Sync {
 	 * sanitize_key() would strip — keep those, drop everything else.
 	 */
 	public static function sanitize_meta_key( $key ) {
-		$key = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $key );
-		return $key !== '' ? $key : 'sold';
+		return preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $key );
 	}
 
 	// -------------------------------------------------------------------------

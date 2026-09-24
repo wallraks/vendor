@@ -256,12 +256,14 @@ Since v1.9.0, marking an item **Sold** also flags its listing on corido.co.ke. T
 | **Trigger** | `CVT_Item::update_status()` and `CVT_Payout::mark_paid()` both fire `cvt_item_status_changed`; `CVT_Listivo_Sync` listens. |
 | **Marked sold when** | Item status becomes `sold` or `closed`. `sold → closed` changes nothing on the site — it is already flagged. |
 | **Un-marked when** | An admin reverses a sale (`sold → posted`, `inquiry_received` or `withdrawn`). |
-| **What is written** | The post meta key set in Settings (default `sold`), plus an optional taxonomy term for themes that render badges from a taxonomy. |
+| **What is written** | The listing's sold field — auto-detected, or set explicitly in Settings — plus an optional taxonomy term for themes that render badges from a taxonomy. |
 | **Where it writes** | Only the single post the item's listing URL resolves to, and only when that post is the configured Listivo post type. |
 | **Skipped when** | The item has no listing URL, the URL points off-site, no listing matches it, or the listing's sold flag was set outside the tracker. |
 | **Audit trail** | Every attempt is written to the item's activity log (`listing_marked_sold`, `listing_unmarked_sold`, `listing_sync_failed`). |
 
-Before relying on it, open one listing you have already marked sold by hand, look at its Custom Fields panel, and copy the key Listivo uses into **Settings → Website Sold Sync**. The default (`sold`) matches a stock Listivo install.
+**Finding the sold field.** Listivo's CT framework prefixes listing fields with the post type, so the bare key is rarely right — the price lookup in `admin/class-cvt-ajax.php` walks the same shape of list for the same reason. Leave **Listing Field Key** blank in Settings and the sync finds it: it checks, in order, `_listivo1_listing_sold`, `listivo1_listing_sold`, `_sold`, `sold`, and uses whichever one your existing listings already carry. The result is cached for a day and re-detected whenever the key or the listing post type is saved.
+
+Settings shows which key is in play and whether it was confirmed against real data. When no listing has been marked sold yet there is nothing to detect, so it says so rather than claiming a match — mark one sold by hand and reload. The **Sold Field Finder** card lists every listing field whose name mentions "sold", with how many listings carry it and a sample value, which names the real key and the value it holds.
 
 Then test on a single item — mark it Sold and reload the listing on the front end. The sync writes the field and clears the post cache, but a theme or CDN layer that keeps its own index of listing fields may need that index rebuilt before the badge appears. If the badge does not show, the key is wrong or the theme reads its sold state from somewhere else; nothing else in the tracker is affected.
 
@@ -499,11 +501,14 @@ add_action( 'cvt_item_status_changed', function( $item_id, $old_status, $new_sta
 | Method | Purpose |
 |---|---|
 | `mark_sold( $item_id )` / `clear_sold( $item_id )` | Write or undo the sold flag; return the listing post ID or a `WP_Error`. |
+| `candidate_keys()` | The sold field keys tried, in priority order. |
+| `meta_key()` / `key_is_confirmed()` | The key in use, and whether it came from real data or is an unverified fallback. |
+| `detected_key()` / `scan_for_sold_key()` / `bust_key_cache()` | Day-cached detection of the site's sold key, the query behind it, and the cache reset. |
 | `resolve_post_id( $item )` | `url_to_postid()` on the stored URL, falling back to a slug lookup scoped to the Listivo post type. Rejects off-site URLs and posts of the wrong type. |
 | `site_state( $item )` | Read-only state for the item detail screen: `disabled`, `no_url`, `error`, `sold`, `not_sold`, plus `can_sync`. |
 | `pending_items()` / `unsynced_count()` / `backfill()` | Find and fix items sold before the sync existed. The count is cached for five minutes. |
 
-Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key`, `cvt_sold_sync_meta_value`, `cvt_sold_sync_taxonomy`, `cvt_sold_sync_term`.
+Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key` (blank means auto-detect), `cvt_sold_sync_meta_value`, `cvt_sold_sync_taxonomy`, `cvt_sold_sync_term`.
 
 ---
 
@@ -515,7 +520,9 @@ Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key`, `cvt_sold_s
 - Marking an item **Sold** now flags its Listivo listing on corido.co.ke. The listing stays published; only the sold flag is written, so the page keeps its SEO value and buyers can see the item has gone.
 - Reversing a sale (`sold → posted` / `inquiry_received` / `withdrawn`) removes the flag again. `sold → closed` is a no-op — the listing is already flagged.
 - New class `includes/class-cvt-listivo-sync.php`, driven by a new `cvt_item_status_changed` action fired from `CVT_Item::update_status()` and `CVT_Payout::mark_paid()`.
-- **Settings → Website Sold Sync**: on/off, the listing field key (default `sold`) and value (default `1`), and an optional taxonomy + term for themes that render badges from a taxonomy.
+- **Settings → Website Sold Sync**: on/off, the listing field key (blank = auto-detect) and value (default `1`), and an optional taxonomy + term for themes that render badges from a taxonomy.
+- The sold field key is detected from the site rather than guessed: the sync tries `_listivo1_listing_sold`, `listivo1_listing_sold`, `_sold`, `sold` and uses the one your listings carry, matching how the existing price lookup handles Listivo's prefixed field names. Settings reports whether the key was confirmed against real data or is an unverified fallback.
+- New **Sold Field Finder** card in Settings lists every listing field whose name mentions "sold", with listing counts and a sample value — it names the real key without anyone opening a Custom Fields panel.
 - Settings also offers a one-click backfill for items that were marked Sold before the sync existed, and shows how many listings currently carry the flag.
 - The item detail screen shows whether the listing is flagged on the site, with a **Mark Sold on site** button (capability `cvt_update_status_sold`) when the tracker and the website disagree — for example when the listing URL was pasted in after the sale.
 

@@ -214,12 +214,17 @@ class CVT_Settings {
 
 		if ( isset( $data['cvt_listivo_post_type'] ) ) {
 			update_option( 'cvt_listivo_post_type', sanitize_key( $data['cvt_listivo_post_type'] ) );
+			CVT_Listivo_Sync::bust_key_cache();
 		}
 
 		// Sold-sync form submits a sentinel so an unchecked box reads as "off".
 		if ( isset( $data['cvt_sold_sync_submitted'] ) ) {
 			update_option( 'cvt_sold_sync_enabled', empty( $data['cvt_sold_sync_enabled'] ) ? 0 : 1 );
+
+			// Blank is meaningful: it hands the key back to auto-detection.
 			update_option( 'cvt_sold_sync_meta_key', CVT_Listivo_Sync::sanitize_meta_key( $data['cvt_sold_sync_meta_key'] ?? '' ) );
+			CVT_Listivo_Sync::bust_key_cache();
+			CVT_Listivo_Sync::bust_pending_cache();
 
 			$sold_value = sanitize_text_field( $data['cvt_sold_sync_meta_value'] ?? '' );
 			update_option( 'cvt_sold_sync_meta_value', $sold_value !== '' ? $sold_value : '1' );

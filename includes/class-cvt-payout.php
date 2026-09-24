@@ -129,6 +129,9 @@ class CVT_Payout {
 			'Auto-closed after payout marked paid.'
 		);
 
+		/** This action is documented in includes/class-cvt-item.php */
+		do_action( 'cvt_item_status_changed', absint( $payout->item_id ), 'sold', 'closed' );
+
 		CVT_Item::bust_cache();
 		return true;
 	}

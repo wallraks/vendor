@@ -45,6 +45,18 @@ class CVT_Activator {
 				'General / Mixed Goods',
 			) ) );
 		}
+
+		// Website sold sync — on by default, meta-key based.
+		if ( false === get_option( 'cvt_sold_sync_enabled' ) ) {
+			update_option( 'cvt_sold_sync_enabled', 1 );
+		}
+		// Left blank on purpose: the sync detects the site's sold key itself.
+		if ( false === get_option( 'cvt_sold_sync_meta_key' ) ) {
+			update_option( 'cvt_sold_sync_meta_key', '' );
+		}
+		if ( false === get_option( 'cvt_sold_sync_meta_value' ) ) {
+			update_option( 'cvt_sold_sync_meta_value', '1' );
+		}
 		flush_rewrite_rules();
 	}
 

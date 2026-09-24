@@ -188,6 +188,16 @@ class CVT_Item {
 			CVT_Payout::create_from_item( $id );
 		}
 
+		/**
+		 * Fires after an item's status has changed and its side-effects have run.
+		 * Used by CVT_Listivo_Sync to flag the website listing as sold.
+		 *
+		 * @param int    $id
+		 * @param string $old_status
+		 * @param string $new_status
+		 */
+		do_action( 'cvt_item_status_changed', $id, $old_status, $new_status );
+
 		return true;
 	}
 

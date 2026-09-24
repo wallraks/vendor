@@ -853,6 +853,14 @@ class CVT_REST_API {
 			$wpdb->delete( CVT_DB::payouts(), array( 'item_id' => $id, 'status' => 'pending' ), array( '%d', '%s' ) );
 		}
 
+		/**
+		 * This action is documented in includes/class-cvt-item.php.
+		 * Fired here too: this endpoint writes the status directly rather than
+		 * going through CVT_Item::update_status(), so without it a sale made
+		 * over the API would never reach the website listing.
+		 */
+		do_action( 'cvt_item_status_changed', $id, $old_status, $new_status );
+
 		return new WP_REST_Response( array(
 			'success'    => true,
 			'message'    => sprintf( 'Status updated to "%s".', $new_status ),
@@ -1006,6 +1014,9 @@ class CVT_REST_API {
 			array( 'status' => 'closed' ),
 			'Auto-closed after payout marked paid.'
 		);
+
+		/** This action is documented in includes/class-cvt-item.php */
+		do_action( 'cvt_item_status_changed', absint( $payout->item_id ), 'sold', 'closed' );
 
 		return new WP_REST_Response( array(
 			'success' => true,

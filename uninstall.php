@@ -34,6 +34,16 @@ delete_option( 'cvt_categories' );
 delete_option( 'cvt_listivo_taxonomy' );
 delete_option( 'cvt_listivo_post_type' );
 delete_option( 'cvt_assignable_roles' );
+delete_option( 'cvt_sold_sync_enabled' );
+delete_option( 'cvt_sold_sync_meta_key' );
+delete_option( 'cvt_sold_sync_meta_value' );
+delete_option( 'cvt_sold_sync_taxonomy' );
+delete_option( 'cvt_sold_sync_term' );
+delete_transient( 'cvt_sold_sync_pending' );
+
+// Remove our own sync markers from listings. The sold flag itself is left in
+// place — it is the theme's own field, and those items really did sell.
+$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => '_cvt_sold_synced' ) );
 
 remove_role( 'cvt_admin' );
 remove_role( 'cvt_senior_agent' );

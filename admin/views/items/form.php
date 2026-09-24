@@ -68,152 +68,174 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 
 			<?php if ( ! $is_edit ) : ?>
 				<!-- ============================================================
-				     ADD MODE
+				     ADD MODE — vendor first, then item details
 				     ============================================================ -->
 
-				<!-- Step 1: Search for the Listivo listing -->
-				<div class="cvt-card cvt-listing-search-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Search Listing', 'corido-vendor-tracker' ); ?></h2>
-
-					<!-- Search input row -->
-					<div class="cvt-field" id="cvt-listing-search-state">
-						<div id="cvt-listing-search-wrap" style="position:relative;">
-							<input type="text" id="cvt-listing-search" class="widefat"
-								placeholder="<?php esc_attr_e( 'Start typing the item name…', 'corido-vendor-tracker' ); ?>"
-								autocomplete="off">
-							<div id="cvt-listing-suggestions" class="cvt-suggestions" hidden></div>
-						</div>
-						<p class="description" style="margin-top:6px;">
-							<?php esc_html_e( 'Search published listings from the website. Fields below fill in automatically when you select one.', 'corido-vendor-tracker' ); ?>
-						</p>
+				<!-- Step 1: Vendor -->
+				<div class="cvt-card">
+					<h2 class="cvt-card-title">
+						<?php esc_html_e( 'Vendor', 'corido-vendor-tracker' ); ?> <span class="required">*</span>
+					</h2>
+					<div class="cvt-field">
+						<input type="text" id="cvt-vendor-search" class="widefat"
+							placeholder="<?php esc_attr_e( 'Type name or phone…', 'corido-vendor-tracker' ); ?>"
+							value="<?php echo $preselect_vendor ? esc_attr( $preselect_vendor->name . ' (' . $preselect_vendor->phone_primary . ')' ) : ''; ?>"
+							autocomplete="off">
+						<input type="hidden" id="vendor_id" name="vendor_id" required
+							value="<?php echo esc_attr( $preselect_vendor_id ); ?>">
+						<div id="cvt-vendor-suggestions" class="cvt-suggestions" hidden></div>
 					</div>
-
-					<!-- Selected listing chip (shown after selection) -->
-					<div id="cvt-listing-selected" class="cvt-listing-chip" hidden>
-						<img id="cvt-listing-thumb" src="" alt="" class="cvt-listing-thumb-img" hidden>
-						<div class="cvt-listing-chip-body">
-							<span class="cvt-listing-chip-title" id="cvt-listing-chip-title"></span>
-							<a id="cvt-listing-chip-url" href="#" target="_blank" rel="noopener" class="cvt-muted">
-								<?php esc_html_e( 'View on website ↗', 'corido-vendor-tracker' ); ?>
-							</a>
-						</div>
-						<button type="button" id="cvt-listing-change" class="button button-small">
-							<?php esc_html_e( 'Change', 'corido-vendor-tracker' ); ?>
-						</button>
-					</div>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=cvt-vendors&action=add' ) ); ?>"
+						class="button button-small" target="_blank">
+						+ <?php esc_html_e( 'Create new vendor', 'corido-vendor-tracker' ); ?>
+					</a>
 				</div>
 
-				<!-- Step 2: Item details — populated from listing, editable -->
-				<div class="cvt-card">
-					<h2 class="cvt-card-title"><?php esc_html_e( 'Item Details', 'corido-vendor-tracker' ); ?></h2>
+				<!-- Step 2: Item details — locked until vendor is selected -->
+				<div id="cvt-item-fields-wrap"<?php echo $preselect_vendor_id ? '' : ' class="cvt-fields-locked"'; ?>>
 
-					<div class="cvt-field">
-						<label for="title"><?php esc_html_e( 'Item Title', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
-						<input type="text" id="title" name="title" class="widefat" required
-							placeholder="<?php esc_attr_e( 'Auto-filled when you select a listing above', 'corido-vendor-tracker' ); ?>">
+					<?php if ( ! $preselect_vendor_id ) : ?>
+					<div class="cvt-fields-locked-notice" id="cvt-fields-locked-notice">
+						<span class="dashicons dashicons-arrow-up-alt"></span>
+						<?php esc_html_e( 'Select a vendor above to continue', 'corido-vendor-tracker' ); ?>
+					</div>
+					<?php endif; ?>
+
+					<!-- Listing search -->
+					<div class="cvt-card cvt-listing-search-card">
+						<h2 class="cvt-card-title"><?php esc_html_e( 'Search Listing', 'corido-vendor-tracker' ); ?></h2>
+						<div class="cvt-field" id="cvt-listing-search-state">
+							<div id="cvt-listing-search-wrap" style="position:relative;">
+								<input type="text" id="cvt-listing-search" class="widefat"
+									placeholder="<?php esc_attr_e( 'Start typing the item name…', 'corido-vendor-tracker' ); ?>"
+									autocomplete="off">
+								<div id="cvt-listing-suggestions" class="cvt-suggestions" hidden></div>
+							</div>
+							<p class="description" style="margin-top:6px;">
+								<?php esc_html_e( 'Search published listings. Fields fill in automatically when you select one.', 'corido-vendor-tracker' ); ?>
+							</p>
+						</div>
+						<div id="cvt-listing-selected" class="cvt-listing-chip" hidden>
+							<img id="cvt-listing-thumb" src="" alt="" class="cvt-listing-thumb-img" hidden>
+							<div class="cvt-listing-chip-body">
+								<span class="cvt-listing-chip-title" id="cvt-listing-chip-title"></span>
+								<a id="cvt-listing-chip-url" href="#" target="_blank" rel="noopener" class="cvt-muted">
+									<?php esc_html_e( 'View on website ↗', 'corido-vendor-tracker' ); ?>
+								</a>
+							</div>
+							<button type="button" id="cvt-listing-change" class="button button-small">
+								<?php esc_html_e( 'Change', 'corido-vendor-tracker' ); ?>
+							</button>
+						</div>
 					</div>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
-							<select id="category" name="category" class="widefat">
-								<option value=""><?php esc_html_e( '— Auto-filled from listing —', 'corido-vendor-tracker' ); ?></option>
-								<?php foreach ( $categories as $cat ) : ?>
-								<option value="<?php echo esc_attr( $cat ); ?>">
-									<?php echo esc_html( $cat ); ?>
-								</option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="cvt-field">
-							<label for="deal_type"><?php esc_html_e( 'Deal Type', 'corido-vendor-tracker' ); ?></label>
-							<select id="deal_type" name="deal_type" class="widefat">
-								<option value="consignment"><?php esc_html_e( 'Consignment', 'corido-vendor-tracker' ); ?></option>
-								<option value="agency"><?php esc_html_e( 'Agency', 'corido-vendor-tracker' ); ?></option>
-								<option value="listing"><?php esc_html_e( 'Listing', 'corido-vendor-tracker' ); ?></option>
-							</select>
-						</div>
-					</div>
+					<!-- Item details -->
+					<div class="cvt-card">
+						<h2 class="cvt-card-title"><?php esc_html_e( 'Item Details', 'corido-vendor-tracker' ); ?></h2>
 
-					<div class="cvt-field-row">
+						<div class="cvt-field">
+							<label for="title"><?php esc_html_e( 'Item Title', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
+							<input type="text" id="title" name="title" class="widefat" required
+								placeholder="<?php esc_attr_e( 'Auto-filled when you select a listing above', 'corido-vendor-tracker' ); ?>">
+						</div>
+
+						<div class="cvt-field-row">
+							<div class="cvt-field">
+								<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
+								<select id="category" name="category" class="widefat">
+									<option value=""><?php esc_html_e( '— Auto-filled from listing —', 'corido-vendor-tracker' ); ?></option>
+									<?php foreach ( $categories as $cat ) : ?>
+									<option value="<?php echo esc_attr( $cat ); ?>"><?php echo esc_html( $cat ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="cvt-field">
+								<label><?php esc_html_e( 'Deal Type', 'corido-vendor-tracker' ); ?></label>
+								<div class="cvt-deal-type-strip" role="group" aria-label="<?php esc_attr_e( 'Deal Type', 'corido-vendor-tracker' ); ?>">
+									<button type="button" class="cvt-deal-type-btn is-active" data-value="consignment"><?php esc_html_e( 'Consignment', 'corido-vendor-tracker' ); ?></button>
+									<button type="button" class="cvt-deal-type-btn" data-value="agency"><?php esc_html_e( 'Agency', 'corido-vendor-tracker' ); ?></button>
+									<button type="button" class="cvt-deal-type-btn" data-value="listing"><?php esc_html_e( 'Listing', 'corido-vendor-tracker' ); ?></button>
+								</div>
+								<input type="hidden" id="deal_type" name="deal_type" value="consignment">
+							</div>
+						</div>
+
 						<div class="cvt-field">
 							<label for="selling_price"><?php esc_html_e( 'Selling Price (KES)', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
 							<input type="number" id="selling_price" name="selling_price" class="widefat" required min="0" step="0.01"
 								placeholder="<?php esc_attr_e( 'Auto-filled from listing price', 'corido-vendor-tracker' ); ?>">
 						</div>
-						<div class="cvt-field">
-							<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
-								placeholder="<?php esc_attr_e( 'Vendor\'s estimate', 'corido-vendor-tracker' ); ?>">
-						</div>
-					</div>
 
-					<div id="cvt-commission-rate-wrap">
-						<div class="cvt-field-row">
-							<div class="cvt-field">
-								<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
-								<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
-									value=""
-									placeholder="<?php echo esc_attr( $global_rate ); ?>">
-								<p class="description">
-									<?php echo esc_html( sprintf(
-										__( 'Leave blank to use the global default (%s%%).', 'corido-vendor-tracker' ),
-										$global_rate
-									) ); ?>
-								</p>
+						<!-- Live payout preview -->
+						<div class="cvt-payout-preview" id="cvt-payout-preview">
+							<div class="cvt-payout-preview-row">
+								<span>
+									<span id="preview-commission-label"><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?> (<span id="preview-rate"><?php echo esc_html( $global_rate ); ?></span>%)</span>
+									<span id="preview-listing-fee-label" style="display:none;"><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
+								</span>
+								<strong id="preview-commission"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
+							</div>
+							<div class="cvt-payout-preview-row cvt-payout-preview-row--total">
+								<span><?php esc_html_e( 'Vendor Payout', 'corido-vendor-tracker' ); ?></span>
+								<strong id="preview-payout"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
 							</div>
 						</div>
-					</div>
 
-					<div id="cvt-listing-fee-wrap" style="display:none;">
-						<div class="cvt-field-row">
-							<div class="cvt-field">
-								<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
-								<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
-									value=""
-									placeholder="<?php echo esc_attr( $default_fee ); ?>">
-								<p class="description">
-									<?php echo esc_html( sprintf(
-										__( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ),
-										number_format( $default_fee, 0 )
-									) ); ?>
-								</p>
+						<!-- More options -->
+						<details class="cvt-more-options">
+							<summary><?php esc_html_e( 'More options', 'corido-vendor-tracker' ); ?></summary>
+							<div class="cvt-more-options-body">
+
+								<div class="cvt-field">
+									<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
+									<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
+										placeholder="<?php esc_attr_e( 'Vendor\'s estimate', 'corido-vendor-tracker' ); ?>">
+								</div>
+
+								<div id="cvt-commission-rate-wrap">
+									<div class="cvt-field">
+										<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
+										<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
+											value="" placeholder="<?php echo esc_attr( $global_rate ); ?>">
+										<p class="description">
+											<?php echo esc_html( sprintf( __( 'Leave blank to use the global default (%s%%).', 'corido-vendor-tracker' ), $global_rate ) ); ?>
+										</p>
+									</div>
+								</div>
+
+								<div id="cvt-listing-fee-wrap" style="display:none;">
+									<div class="cvt-field">
+										<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
+										<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
+											value="" placeholder="<?php echo esc_attr( $default_fee ); ?>">
+										<p class="description">
+											<?php echo esc_html( sprintf( __( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ), number_format( $default_fee, 0 ) ) ); ?>
+										</p>
+									</div>
+								</div>
+
+								<div class="cvt-field-row">
+									<div class="cvt-field">
+										<label for="date_received"><?php esc_html_e( 'Date Received', 'corido-vendor-tracker' ); ?></label>
+										<input type="date" id="date_received" name="date_received" class="widefat"
+											value="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
+									</div>
+									<div class="cvt-field">
+										<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
+										<textarea id="notes" name="notes" rows="3" class="widefat"
+											placeholder="<?php esc_attr_e( 'Condition, agent observations…', 'corido-vendor-tracker' ); ?>"></textarea>
+									</div>
+								</div>
+
 							</div>
-						</div>
-					</div>
+						</details>
 
-					<!-- Live payout preview -->
-					<div class="cvt-payout-preview" id="cvt-payout-preview">
-						<div class="cvt-payout-preview-row">
-							<span>
-								<span id="preview-commission-label"><?php esc_html_e( 'Commission', 'corido-vendor-tracker' ); ?> (<span id="preview-rate"><?php echo esc_html( $global_rate ); ?></span>%)</span>
-								<span id="preview-listing-fee-label" style="display:none;"><?php esc_html_e( 'Listing Fee', 'corido-vendor-tracker' ); ?></span>
-							</span>
-							<strong id="preview-commission"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
-						</div>
-						<div class="cvt-payout-preview-row cvt-payout-preview-row--total">
-							<span><?php esc_html_e( 'Vendor Payout', 'corido-vendor-tracker' ); ?></span>
-							<strong id="preview-payout"><?php echo esc_html( CVT_Settings::format_currency( 0 ) ); ?></strong>
-						</div>
-					</div>
-
-					<div class="cvt-field-row" style="margin-top:16px;">
-						<div class="cvt-field">
-							<label for="date_received"><?php esc_html_e( 'Date Received', 'corido-vendor-tracker' ); ?></label>
-							<input type="date" id="date_received" name="date_received" class="widefat"
-								value="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
-						</div>
-						<div class="cvt-field">
-							<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
-							<textarea id="notes" name="notes" rows="3" class="widefat"
-								placeholder="<?php esc_attr_e( 'Condition, agent observations…', 'corido-vendor-tracker' ); ?>"></textarea>
-						</div>
-					</div>
-				</div>
+					</div><!-- .cvt-card item details -->
+				</div><!-- #cvt-item-fields-wrap -->
 
 			<?php else : ?>
 				<!-- ============================================================
-				     EDIT MODE — All fields editable
+				     EDIT MODE
 				     ============================================================ -->
 				<div class="cvt-card">
 					<h2 class="cvt-card-title"><?php esc_html_e( 'Item Details', 'corido-vendor-tracker' ); ?></h2>
@@ -233,11 +255,6 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 							value="<?php echo esc_attr( $item->title ); ?>">
 					</div>
 
-					<div class="cvt-field">
-						<label for="description"><?php esc_html_e( 'Description', 'corido-vendor-tracker' ); ?></label>
-						<textarea id="description" name="description" rows="4" class="widefat"><?php echo esc_textarea( $item->description ); ?></textarea>
-					</div>
-
 					<div class="cvt-field-row">
 						<div class="cvt-field">
 							<label for="category"><?php esc_html_e( 'Category', 'corido-vendor-tracker' ); ?></label>
@@ -251,84 +268,55 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 							</select>
 						</div>
 						<div class="cvt-field">
-							<label for="deal_type"><?php esc_html_e( 'Deal Type', 'corido-vendor-tracker' ); ?></label>
-							<select id="deal_type" name="deal_type" class="widefat">
-								<option value="consignment" <?php selected( $item->deal_type, 'consignment' ); ?>><?php esc_html_e( 'Consignment', 'corido-vendor-tracker' ); ?></option>
-								<option value="agency"      <?php selected( $item->deal_type, 'agency' );      ?>><?php esc_html_e( 'Agency', 'corido-vendor-tracker' ); ?></option>
-								<option value="listing"     <?php selected( $item->deal_type, 'listing' );     ?>><?php esc_html_e( 'Listing', 'corido-vendor-tracker' ); ?></option>
-							</select>
+							<label><?php esc_html_e( 'Deal Type', 'corido-vendor-tracker' ); ?></label>
+							<div class="cvt-deal-type-strip" role="group" aria-label="<?php esc_attr_e( 'Deal Type', 'corido-vendor-tracker' ); ?>">
+								<?php foreach ( array( 'consignment' => 'Consignment', 'agency' => 'Agency', 'listing' => 'Listing' ) as $val => $label ) : ?>
+								<button type="button" class="cvt-deal-type-btn<?php echo $item->deal_type === $val ? ' is-active' : ''; ?>" data-value="<?php echo esc_attr( $val ); ?>">
+									<?php echo esc_html( $label ); ?>
+								</button>
+								<?php endforeach; ?>
+							</div>
+							<input type="hidden" id="deal_type" name="deal_type" value="<?php echo esc_attr( $item->deal_type ); ?>">
 						</div>
 					</div>
 
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="date_received"><?php esc_html_e( 'Date Received', 'corido-vendor-tracker' ); ?></label>
-							<input type="date" id="date_received" name="date_received" class="widefat"
-								value="<?php echo esc_attr( $item->date_received ?? current_time( 'Y-m-d' ) ); ?>">
+					<!-- More options: description, dates, URL, notes -->
+					<details class="cvt-more-options">
+						<summary><?php esc_html_e( 'More options', 'corido-vendor-tracker' ); ?></summary>
+						<div class="cvt-more-options-body">
+							<div class="cvt-field">
+								<label for="description"><?php esc_html_e( 'Description', 'corido-vendor-tracker' ); ?></label>
+								<textarea id="description" name="description" rows="4" class="widefat"><?php echo esc_textarea( $item->description ); ?></textarea>
+							</div>
+							<div class="cvt-field-row">
+								<div class="cvt-field">
+									<label for="date_received"><?php esc_html_e( 'Date Received', 'corido-vendor-tracker' ); ?></label>
+									<input type="date" id="date_received" name="date_received" class="widefat"
+										value="<?php echo esc_attr( $item->date_received ?? current_time( 'Y-m-d' ) ); ?>">
+								</div>
+								<div class="cvt-field">
+									<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
+									<textarea id="notes" name="notes" rows="3" class="widefat"><?php echo esc_textarea( $item->notes ); ?></textarea>
+								</div>
+							</div>
+							<div class="cvt-field">
+								<label for="listivo_listing_url"><?php esc_html_e( 'Listivo Listing URL', 'corido-vendor-tracker' ); ?></label>
+								<input type="url" id="listivo_listing_url" name="listivo_listing_url" class="widefat"
+									value="<?php echo esc_attr( $item->listivo_listing_url ?? '' ); ?>"
+									placeholder="https://...">
+							</div>
 						</div>
-						<div class="cvt-field">
-							<label for="notes"><?php esc_html_e( 'Internal Notes', 'corido-vendor-tracker' ); ?></label>
-							<textarea id="notes" name="notes" rows="3" class="widefat"><?php echo esc_textarea( $item->notes ); ?></textarea>
-						</div>
-					</div>
-
-					<div class="cvt-field">
-						<label for="listivo_listing_url"><?php esc_html_e( 'Listivo Listing URL', 'corido-vendor-tracker' ); ?></label>
-						<input type="url" id="listivo_listing_url" name="listivo_listing_url" class="widefat"
-							value="<?php echo esc_attr( $item->listivo_listing_url ?? '' ); ?>"
-							placeholder="https://...">
-					</div>
+					</details>
 				</div>
 
-				<!-- EDIT MODE — Pricing -->
+				<!-- Pricing -->
 				<div class="cvt-card">
 					<h2 class="cvt-card-title"><?php esc_html_e( 'Pricing', 'corido-vendor-tracker' ); ?></h2>
-					<div class="cvt-field-row">
-						<div class="cvt-field">
-							<label for="selling_price"><?php esc_html_e( 'Selling Price (KES)', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
-							<input type="number" id="selling_price" name="selling_price" class="widefat" required min="0" step="0.01"
-								value="<?php echo esc_attr( $item->selling_price ); ?>">
-						</div>
-						<div class="cvt-field">
-							<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
-							<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
-								value="<?php echo esc_attr( $item->market_value ?? '' ); ?>"
-								placeholder="<?php esc_attr_e( 'Vendor\'s estimate', 'corido-vendor-tracker' ); ?>">
-						</div>
-					</div>
 
-					<div id="cvt-commission-rate-wrap"<?php echo $is_listing ? ' style="display:none;"' : ''; ?>>
-						<div class="cvt-field-row">
-							<div class="cvt-field">
-								<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
-								<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
-									value="<?php echo esc_attr( $item_rate !== null ? $item_rate : '' ); ?>"
-									placeholder="<?php echo esc_attr( $global_rate ); ?>">
-								<p class="description">
-									<?php echo esc_html( sprintf(
-										__( 'Leave blank to use the global default (%s%%). Changing this will be logged.', 'corido-vendor-tracker' ),
-										$global_rate
-									) ); ?>
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<div id="cvt-listing-fee-wrap"<?php echo $is_listing ? '' : ' style="display:none;"'; ?>>
-						<div class="cvt-field-row">
-							<div class="cvt-field">
-								<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
-								<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
-									value="<?php echo esc_attr( $item_fee !== null ? $item_fee : '' ); ?>"
-									placeholder="<?php echo esc_attr( $default_fee ); ?>">
-								<p class="description">
-									<?php echo esc_html( sprintf(
-										__( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ),
-										number_format( $default_fee, 0 )
-									) ); ?>
-								</p>
-							</div>
-						</div>
+					<div class="cvt-field">
+						<label for="selling_price"><?php esc_html_e( 'Selling Price (KES)', 'corido-vendor-tracker' ); ?> <span class="required">*</span></label>
+						<input type="number" id="selling_price" name="selling_price" class="widefat" required min="0" step="0.01"
+							value="<?php echo esc_attr( $item->selling_price ); ?>">
 					</div>
 
 					<div class="cvt-payout-preview" id="cvt-payout-preview">
@@ -345,7 +333,7 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 						</div>
 					</div>
 
-					<!-- Price-change note — revealed by JS when selling_price changes in edit mode -->
+					<!-- Price-change note — revealed by JS when selling_price changes -->
 					<div class="cvt-field" id="cvt-price-note-wrap" style="display:none;margin-top:12px;">
 						<label for="price_change_note">
 							<?php esc_html_e( 'Reason for price change', 'corido-vendor-tracker' ); ?>
@@ -355,6 +343,43 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 						<input type="hidden" id="cvt-original-price"
 							value="<?php echo esc_attr( $item->selling_price ?? '' ); ?>">
 					</div>
+
+					<!-- More options: market value + commission / listing fee override -->
+					<details class="cvt-more-options">
+						<summary><?php esc_html_e( 'More options', 'corido-vendor-tracker' ); ?></summary>
+						<div class="cvt-more-options-body">
+							<div class="cvt-field">
+								<label for="market_value"><?php esc_html_e( 'Market Value (KES)', 'corido-vendor-tracker' ); ?></label>
+								<input type="number" id="market_value" name="market_value" class="widefat" min="0" step="0.01"
+									value="<?php echo esc_attr( $item->market_value ?? '' ); ?>"
+									placeholder="<?php esc_attr_e( 'Vendor\'s estimate', 'corido-vendor-tracker' ); ?>">
+							</div>
+
+							<div id="cvt-commission-rate-wrap"<?php echo $is_listing ? ' style="display:none;"' : ''; ?>>
+								<div class="cvt-field">
+									<label for="commission_rate"><?php esc_html_e( 'Commission Rate (%)', 'corido-vendor-tracker' ); ?></label>
+									<input type="number" id="commission_rate" name="commission_rate" class="widefat" min="0" max="100" step="0.01"
+										value="<?php echo esc_attr( $item_rate !== null ? $item_rate : '' ); ?>"
+										placeholder="<?php echo esc_attr( $global_rate ); ?>">
+									<p class="description">
+										<?php echo esc_html( sprintf( __( 'Leave blank to use the global default (%s%%). Changing this will be logged.', 'corido-vendor-tracker' ), $global_rate ) ); ?>
+									</p>
+								</div>
+							</div>
+
+							<div id="cvt-listing-fee-wrap"<?php echo $is_listing ? '' : ' style="display:none;"'; ?>>
+								<div class="cvt-field">
+									<label for="listing_fee"><?php esc_html_e( 'Listing Fee (KES)', 'corido-vendor-tracker' ); ?></label>
+									<input type="number" id="listing_fee" name="listing_fee" class="widefat" min="0" step="0.01"
+										value="<?php echo esc_attr( $item_fee !== null ? $item_fee : '' ); ?>"
+										placeholder="<?php echo esc_attr( $default_fee ); ?>">
+									<p class="description">
+										<?php echo esc_html( sprintf( __( 'Leave blank or 0 for a free listing. Default: KES %s.', 'corido-vendor-tracker' ), number_format( $default_fee, 0 ) ) ); ?>
+									</p>
+								</div>
+							</div>
+						</div>
+					</details>
 				</div>
 
 			<?php endif; ?>
@@ -363,7 +388,8 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 
 			<div class="cvt-form-sidebar">
 
-				<!-- Vendor -->
+				<?php if ( $is_edit ) : ?>
+				<!-- Vendor — edit mode only; in add mode it sits at the top of the main column -->
 				<div class="cvt-card">
 					<h2 class="cvt-card-title"><?php esc_html_e( 'Vendor', 'corido-vendor-tracker' ); ?> <span class="required">*</span></h2>
 					<div class="cvt-field">
@@ -379,6 +405,7 @@ $agreement_title = $agreement_id ? get_the_title( $agreement_id ) : '';
 						+ <?php esc_html_e( 'Create new vendor', 'corido-vendor-tracker' ); ?>
 					</a>
 				</div>
+				<?php endif; ?>
 
 				<!-- Assigned Agent -->
 				<div class="cvt-card">

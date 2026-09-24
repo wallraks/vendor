@@ -235,6 +235,7 @@
 									$vendorSearch.val(vendorLabel);
 									$vendorId.val(v.id);
 									$vendorSugg.hide().empty();
+									cvtUnlockItemFields();
 								});
 								$vendorSugg.append($row);
 							});
@@ -448,7 +449,7 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// 9. Deal type toggle — show commission rate OR listing fee field
+	// 9. Deal type toggle strip — show commission rate OR listing fee field
 	// -------------------------------------------------------------------------
 	function cvtApplyDealType(type) {
 		var isListing = (type === 'listing');
@@ -459,12 +460,35 @@
 		cvtUpdatePayoutPreview();
 	}
 
+	// Button-strip click handler.
+	$(document).on('click', '.cvt-deal-type-btn', function () {
+		var $btn = $(this);
+		var val  = $btn.data('value');
+		$btn.closest('.cvt-deal-type-strip').find('.cvt-deal-type-btn').removeClass('is-active');
+		$btn.addClass('is-active');
+		$dealType.val(val);
+		cvtApplyDealType(val);
+	});
+
+	// Initialise for edit mode where deal_type is pre-set.
 	if ($dealType.length) {
-		$dealType.on('change', function () {
-			cvtApplyDealType($(this).val());
-		});
-		// Initialise for edit mode where deal_type may already be 'listing'.
-		cvtApplyDealType($dealType.val());
+		cvtApplyDealType($dealType.val() || 'consignment');
 	}
+
+	// -------------------------------------------------------------------------
+	// 10. Vendor-first lock — unlock item fields once a vendor is chosen
+	// -------------------------------------------------------------------------
+	function cvtUnlockItemFields() {
+		var $wrap = $('#cvt-item-fields-wrap');
+		if (!$wrap.length) { return; }
+		$wrap.removeClass('cvt-fields-locked');
+		$('#cvt-fields-locked-notice').hide();
+	}
+
+	// Re-wire the existing vendor suggestion click to also unlock the form.
+	// We do this by observing changes to the hidden #vendor_id input.
+	$vendorId.on('change', function () {
+		if ($(this).val()) { cvtUnlockItemFields(); }
+	});
 
 })(jQuery);

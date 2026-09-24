@@ -13,6 +13,22 @@ defined( 'ABSPATH' ) || exit;
  * PATCH  /corido/v1/vendors/{id}         — update vendor fields
  * DELETE /corido/v1/vendors/{id}         — delete vendor + all their items
  * POST   /corido/v1/vendors/{id}/items   — add item to existing vendor
+ *
+ * GET    /corido/v1/items                — list items (filterable)
+ * GET    /corido/v1/items/{id}           — single item + images
+ * PATCH  /corido/v1/items/{id}           — update item fields
+ * DELETE /corido/v1/items/{id}           — delete item
+ * POST   /corido/v1/items/{id}/status    — transition item status
+ *
+ * GET    /corido/v1/payouts              — list payouts (filterable)
+ * GET    /corido/v1/payouts/{id}         — single payout
+ * POST   /corido/v1/payouts/{id}/mark-paid — mark payout paid + auto-close item
+ *
+ * GET    /corido/v1/waitlist             — list waitlist entries (filterable)
+ * POST   /corido/v1/waitlist             — create waitlist entry
+ * GET    /corido/v1/waitlist/{id}        — single entry
+ * PATCH  /corido/v1/waitlist/{id}        — update entry
+ * DELETE /corido/v1/waitlist/{id}        — delete entry
  */
 class CVT_REST_API {
 
@@ -81,6 +97,134 @@ class CVT_REST_API {
 					'listing_id'    => array( 'type' => 'string', 'default' => '' ),
 					'notes'         => array( 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field' ),
 				),
+			),
+		) );
+
+		register_rest_route( $ns, '/items', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'list_items' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'page'      => array( 'type' => 'integer', 'default' => 1,  'minimum' => 1 ),
+					'per_page'  => array( 'type' => 'integer', 'default' => 20, 'minimum' => 1, 'maximum' => 100 ),
+					's'         => array( 'type' => 'string',  'default' => '' ),
+					'vendor_id' => array( 'type' => 'integer', 'default' => 0 ),
+					'status'    => array( 'type' => 'string',  'default' => '' ),
+					'category'  => array( 'type' => 'string',  'default' => '' ),
+					'deal_type' => array( 'type' => 'string',  'default' => '' ),
+				),
+			),
+		) );
+
+		register_rest_route( $ns, '/items/(?P<id>\d+)', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_item' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+			array(
+				'methods'             => 'PATCH',
+				'callback'            => array( __CLASS__, 'update_item' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => array( __CLASS__, 'delete_item' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+		) );
+
+		register_rest_route( $ns, '/items/(?P<id>\d+)/status', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'update_item_status' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'status' => array( 'type' => 'string', 'required' => true ),
+					'note'   => array( 'type' => 'string', 'default'  => '' ),
+				),
+			),
+		) );
+
+		register_rest_route( $ns, '/payouts', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'list_payouts' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'page'      => array( 'type' => 'integer', 'default' => 1,  'minimum' => 1 ),
+					'per_page'  => array( 'type' => 'integer', 'default' => 20, 'minimum' => 1, 'maximum' => 100 ),
+					'status'    => array( 'type' => 'string',  'default' => '', 'enum' => array( '', 'pending', 'paid' ) ),
+					'vendor_id' => array( 'type' => 'integer', 'default' => 0 ),
+				),
+			),
+		) );
+
+		register_rest_route( $ns, '/payouts/(?P<id>\d+)', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_payout' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+		) );
+
+		register_rest_route( $ns, '/payouts/(?P<id>\d+)/mark-paid', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'mark_payout_paid' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'reference_number' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
+					'notes'            => array( 'type' => 'string', 'default'  => '',   'sanitize_callback' => 'sanitize_textarea_field' ),
+				),
+			),
+		) );
+
+		register_rest_route( $ns, '/waitlist', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'list_waitlist' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'page'     => array( 'type' => 'integer', 'default' => 1,  'minimum' => 1 ),
+					'per_page' => array( 'type' => 'integer', 'default' => 20, 'minimum' => 1, 'maximum' => 100 ),
+					's'        => array( 'type' => 'string',  'default' => '' ),
+					'status'   => array( 'type' => 'string',  'default' => '' ),
+					'tag'      => array( 'type' => 'string',  'default' => '' ),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'create_waitlist_entry' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+				'args'                => array(
+					'client_name' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
+					'phone'       => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
+					'email'       => array( 'type' => 'string', 'default'  => '',   'sanitize_callback' => 'sanitize_email' ),
+					'timeframe'   => array( 'type' => 'string', 'default'  => '',   'sanitize_callback' => 'sanitize_text_field' ),
+					'notes'       => array( 'type' => 'string', 'default'  => '',   'sanitize_callback' => 'sanitize_textarea_field' ),
+					'tags'          => array( 'type' => 'array', 'default' => array(), 'items' => array( 'type' => 'string' ) ),
+					'request_items' => array( 'type' => 'array', 'default' => array() ),
+				),
+			),
+		) );
+
+		register_rest_route( $ns, '/waitlist/(?P<id>\d+)', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_waitlist_entry' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+			array(
+				'methods'             => 'PATCH',
+				'callback'            => array( __CLASS__, 'update_waitlist_entry' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => array( __CLASS__, 'delete_waitlist_entry' ),
+				'permission_callback' => array( __CLASS__, 'check_permission' ),
 			),
 		) );
 	}
@@ -444,6 +588,567 @@ class CVT_REST_API {
 			'item_id' => $item_id,
 			'message' => 'Item created.',
 		), 201 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /items
+	// -------------------------------------------------------------------------
+
+	public static function list_items( $request ) {
+		global $wpdb;
+
+		$page      = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page  = min( 100, max( 1, (int) $request->get_param( 'per_page' ) ) );
+		$search    = sanitize_text_field( $request->get_param( 's' ) );
+		$vendor_id = absint( $request->get_param( 'vendor_id' ) );
+		$status    = sanitize_text_field( $request->get_param( 'status' ) );
+		$category  = sanitize_text_field( $request->get_param( 'category' ) );
+		$deal_type = sanitize_text_field( $request->get_param( 'deal_type' ) );
+		$offset    = ( $page - 1 ) * $per_page;
+
+		$where  = array( '1=1' );
+		$params = array();
+
+		if ( $search !== '' ) {
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[]  = '( i.title LIKE %s OR v.name LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+		}
+		if ( $vendor_id > 0 ) {
+			$where[]  = 'i.vendor_id = %d';
+			$params[] = $vendor_id;
+		}
+		if ( $status !== '' ) {
+			$where[]  = 'i.status = %s';
+			$params[] = $status;
+		}
+		if ( $category !== '' ) {
+			$where[]  = 'i.category = %s';
+			$params[] = $category;
+		}
+		if ( $deal_type !== '' ) {
+			$where[]  = 'i.deal_type = %s';
+			$params[] = $deal_type;
+		}
+
+		$where_sql = implode( ' AND ', $where );
+		$tables    = "{$wpdb->prefix}cvt_items i LEFT JOIN {$wpdb->prefix}cvt_vendors v ON v.id = i.vendor_id";
+
+		$count_sql = "SELECT COUNT(*) FROM $tables WHERE $where_sql";
+		$total     = (int) ( $params
+			? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
+			: $wpdb->get_var( $count_sql ) );
+
+		$select_sql   = "SELECT i.id, i.vendor_id, v.name AS vendor_name, i.title, i.category,
+			i.selling_price, i.market_value, i.deal_type, i.status,
+			i.listivo_listing_url, i.date_received, i.date_posted, i.created_at
+			FROM $tables WHERE $where_sql
+			ORDER BY i.created_at DESC LIMIT %d OFFSET %d";
+		$query_params = array_merge( $params, array( $per_page, $offset ) );
+		$items        = $wpdb->get_results( $wpdb->prepare( $select_sql, ...$query_params ) );
+
+		return new WP_REST_Response( array(
+			'items'       => $items,
+			'total'       => $total,
+			'page'        => $page,
+			'per_page'    => $per_page,
+			'total_pages' => (int) ceil( $total / $per_page ),
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /items/{id}
+	// -------------------------------------------------------------------------
+
+	public static function get_item( $request ) {
+		global $wpdb;
+
+		$id   = absint( $request->get_param( 'id' ) );
+		$item = $wpdb->get_row( $wpdb->prepare(
+			"SELECT i.*, v.name AS vendor_name
+			 FROM {$wpdb->prefix}cvt_items i
+			 LEFT JOIN {$wpdb->prefix}cvt_vendors v ON v.id = i.vendor_id
+			 WHERE i.id = %d",
+			$id
+		) );
+
+		if ( ! $item ) {
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
+		}
+
+		$images = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, attachment_id, sort_order FROM {$wpdb->prefix}cvt_item_images WHERE item_id = %d ORDER BY sort_order ASC",
+			$id
+		) );
+
+		return new WP_REST_Response( array(
+			'item'   => $item,
+			'images' => $images,
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// PATCH /items/{id}
+	// -------------------------------------------------------------------------
+
+	public static function update_item( $request ) {
+		global $wpdb;
+
+		$id   = absint( $request->get_param( 'id' ) );
+		$item = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cvt_items WHERE id = %d",
+			$id
+		) );
+
+		if ( ! $item ) {
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
+		}
+
+		$params = $request->get_params();
+		$update = array( 'updated_at' => CVT_DB::now() );
+
+		$text_fields = array( 'title' => 500, 'category' => 100 );
+		foreach ( $text_fields as $field => $max_len ) {
+			if ( array_key_exists( $field, $params ) ) {
+				$update[ $field ] = substr( sanitize_text_field( $params[ $field ] ), 0, $max_len );
+			}
+		}
+
+		if ( array_key_exists( 'selling_price', $params ) ) {
+			$update['selling_price'] = max( 0, (float) $params['selling_price'] );
+		}
+		if ( array_key_exists( 'market_value', $params ) ) {
+			$update['market_value'] = $params['market_value'] !== null ? max( 0, (float) $params['market_value'] ) : null;
+		}
+		if ( array_key_exists( 'commission_rate', $params ) ) {
+			$update['commission_rate'] = $params['commission_rate'] !== null ? max( 0, (float) $params['commission_rate'] ) : null;
+		}
+		if ( array_key_exists( 'listing_fee', $params ) ) {
+			$update['listing_fee'] = $params['listing_fee'] !== null ? max( 0, (float) $params['listing_fee'] ) : null;
+		}
+
+		$allowed_types = array( 'consignment', 'agency', 'listing' );
+		if ( array_key_exists( 'deal_type', $params ) && in_array( $params['deal_type'], $allowed_types, true ) ) {
+			$update['deal_type'] = $params['deal_type'];
+		}
+
+		if ( array_key_exists( 'listing_url', $params ) ) {
+			$update['listivo_listing_url'] = substr( esc_url_raw( $params['listing_url'] ), 0, 500 );
+		}
+		if ( array_key_exists( 'notes', $params ) ) {
+			$update['notes'] = sanitize_textarea_field( $params['notes'] );
+		}
+		if ( array_key_exists( 'date_received', $params ) && $params['date_received'] ) {
+			$update['date_received'] = sanitize_text_field( $params['date_received'] );
+		}
+		if ( array_key_exists( 'date_posted', $params ) && $params['date_posted'] ) {
+			$update['date_posted'] = sanitize_text_field( $params['date_posted'] );
+		}
+
+		if ( count( $update ) === 1 ) {
+			return new WP_REST_Response( array( 'success' => true, 'message' => 'Nothing to update.' ), 200 );
+		}
+
+		$result = $wpdb->update( CVT_DB::items(), $update, array( 'id' => $id ) );
+		if ( false === $result ) {
+			return new WP_Error( 'db_error', 'Could not update item: ' . $wpdb->last_error, array( 'status' => 500 ) );
+		}
+
+		CVT_Activity_Log::log( 'item', $id, 'updated', (array) $item, $update );
+
+		return new WP_REST_Response( array( 'success' => true, 'message' => 'Item updated.' ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// DELETE /items/{id}
+	// -------------------------------------------------------------------------
+
+	public static function delete_item( $request ) {
+		global $wpdb;
+
+		$id   = absint( $request->get_param( 'id' ) );
+		$item = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cvt_items WHERE id = %d",
+			$id
+		) );
+
+		if ( ! $item ) {
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
+		}
+
+		$wpdb->delete( CVT_DB::images(),  array( 'item_id' => $id ),                              array( '%d' ) );
+		$wpdb->delete( CVT_DB::payouts(), array( 'item_id' => $id, 'status' => 'pending' ),       array( '%d', '%s' ) );
+		$wpdb->delete( CVT_DB::items(),   array( 'id' => $id ),                                   array( '%d' ) );
+		CVT_Activity_Log::log( 'item', $id, 'deleted', (array) $item, null );
+
+		return new WP_REST_Response( array( 'success' => true, 'message' => 'Item deleted.' ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST /items/{id}/status
+	// -------------------------------------------------------------------------
+
+	public static function update_item_status( $request ) {
+		global $wpdb;
+
+		$id         = absint( $request->get_param( 'id' ) );
+		$new_status = sanitize_text_field( $request->get_param( 'status' ) );
+		$note       = sanitize_textarea_field( $request->get_param( 'note' ) );
+
+		$item = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cvt_items WHERE id = %d",
+			$id
+		) );
+
+		if ( ! $item ) {
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
+		}
+
+		$old_status    = $item->status;
+		$valid_forward = CVT_Settings::valid_transitions( $old_status );
+		$valid_reverse = CVT_Settings::reverse_transitions( $old_status );
+
+		$is_reverse = in_array( $new_status, $valid_reverse, true );
+		$is_forward = in_array( $new_status, $valid_forward, true );
+
+		if ( ! $is_forward && ! $is_reverse ) {
+			return new WP_Error(
+				'invalid_transition',
+				sprintf( 'Cannot transition from "%s" to "%s".', $old_status, $new_status ),
+				array( 'status' => 422 )
+			);
+		}
+
+		// Reverse transitions require admin capability.
+		if ( $is_reverse && ! current_user_can( 'cvt_manage_settings' ) ) {
+			return new WP_Error( 'rest_forbidden', 'Only administrators can reverse a status.', array( 'status' => 403 ) );
+		}
+
+		$wpdb->update(
+			CVT_DB::items(),
+			array( 'status' => $new_status, 'updated_at' => CVT_DB::now() ),
+			array( 'id' => $id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+
+		CVT_Activity_Log::log( 'item', $id, 'status_changed',
+			array( 'status' => $old_status ),
+			array( 'status' => $new_status ),
+			$note ?: null
+		);
+
+		$payout_id = null;
+
+		if ( $new_status === 'sold' ) {
+			$result = CVT_Payout::create_from_item( $id );
+			if ( ! is_wp_error( $result ) ) {
+				$payout_id = $result;
+			}
+		}
+
+		// Reversing from 'sold' voids any pending payout.
+		if ( $is_reverse && $old_status === 'sold' ) {
+			$wpdb->delete( CVT_DB::payouts(), array( 'item_id' => $id, 'status' => 'pending' ), array( '%d', '%s' ) );
+		}
+
+		return new WP_REST_Response( array(
+			'success'    => true,
+			'message'    => sprintf( 'Status updated to "%s".', $new_status ),
+			'old_status' => $old_status,
+			'new_status' => $new_status,
+			'payout_id'  => $payout_id,
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /payouts
+	// -------------------------------------------------------------------------
+
+	public static function list_payouts( $request ) {
+		global $wpdb;
+
+		$page      = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page  = min( 100, max( 1, (int) $request->get_param( 'per_page' ) ) );
+		$status    = sanitize_text_field( $request->get_param( 'status' ) );
+		$vendor_id = absint( $request->get_param( 'vendor_id' ) );
+		$search    = sanitize_text_field( $request->get_param( 's' ) );
+		$offset    = ( $page - 1 ) * $per_page;
+
+		$where  = array( '1=1' );
+		$params = array();
+
+		if ( $search !== '' ) {
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[]  = '( v.name LIKE %s OR COALESCE(i.title, p.item_title) LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+		}
+		if ( $status !== '' ) {
+			$where[]  = 'p.status = %s';
+			$params[] = $status;
+		}
+		if ( $vendor_id > 0 ) {
+			$where[]  = 'p.vendor_id = %d';
+			$params[] = $vendor_id;
+		}
+
+		$where_sql = implode( ' AND ', $where );
+		$tables    = "{$wpdb->prefix}cvt_payouts p
+			LEFT JOIN {$wpdb->prefix}cvt_vendors v ON v.id = p.vendor_id
+			LEFT JOIN {$wpdb->prefix}cvt_items i ON i.id = p.item_id";
+
+		$count_sql = "SELECT COUNT(*) FROM $tables WHERE $where_sql";
+		$total     = (int) ( $params
+			? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
+			: $wpdb->get_var( $count_sql ) );
+
+		$select_sql   = "SELECT p.*, v.name AS vendor_name, COALESCE(i.title, p.item_title) AS item_title
+			FROM $tables WHERE $where_sql
+			ORDER BY p.created_at DESC LIMIT %d OFFSET %d";
+		$query_params = array_merge( $params, array( $per_page, $offset ) );
+		$payouts      = $wpdb->get_results( $wpdb->prepare( $select_sql, ...$query_params ) );
+
+		return new WP_REST_Response( array(
+			'payouts'     => $payouts,
+			'total'       => $total,
+			'page'        => $page,
+			'per_page'    => $per_page,
+			'total_pages' => (int) ceil( $total / $per_page ),
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /payouts/{id}
+	// -------------------------------------------------------------------------
+
+	public static function get_payout( $request ) {
+		global $wpdb;
+
+		$id     = absint( $request->get_param( 'id' ) );
+		$payout = $wpdb->get_row( $wpdb->prepare(
+			"SELECT p.*, v.name AS vendor_name, COALESCE(i.title, p.item_title) AS item_title,
+			 u.display_name AS processed_by_name
+			 FROM {$wpdb->prefix}cvt_payouts p
+			 LEFT JOIN {$wpdb->prefix}cvt_vendors v ON v.id = p.vendor_id
+			 LEFT JOIN {$wpdb->prefix}cvt_items i ON i.id = p.item_id
+			 LEFT JOIN {$wpdb->users} u ON u.ID = p.processed_by
+			 WHERE p.id = %d",
+			$id
+		) );
+
+		if ( ! $payout ) {
+			return new WP_Error( 'not_found', 'Payout not found.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( array( 'payout' => $payout ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST /payouts/{id}/mark-paid
+	// -------------------------------------------------------------------------
+
+	public static function mark_payout_paid( $request ) {
+		global $wpdb;
+
+		if ( ! current_user_can( 'cvt_mark_payouts' ) ) {
+			return new WP_Error( 'rest_forbidden', 'You do not have permission to mark payouts.', array( 'status' => 403 ) );
+		}
+
+		$id     = absint( $request->get_param( 'id' ) );
+		$payout = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cvt_payouts WHERE id = %d",
+			$id
+		) );
+
+		if ( ! $payout ) {
+			return new WP_Error( 'not_found', 'Payout not found.', array( 'status' => 404 ) );
+		}
+		if ( $payout->status === 'paid' ) {
+			return new WP_Error( 'already_paid', 'This payout is already marked as paid.', array( 'status' => 409 ) );
+		}
+
+		$reference = sanitize_text_field( $request->get_param( 'reference_number' ) ?? '' );
+		$notes     = sanitize_textarea_field( $request->get_param( 'notes' ) ?? '' );
+
+		$wpdb->update(
+			CVT_DB::payouts(),
+			array(
+				'status'           => 'paid',
+				'payout_date'      => current_time( 'Y-m-d' ),
+				'reference_number' => $reference,
+				'notes'            => $notes,
+				'processed_by'     => get_current_user_id(),
+				'updated_at'       => CVT_DB::now(),
+			),
+			array( 'id' => $id ),
+			array( '%s', '%s', '%s', '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+
+		CVT_Activity_Log::log( 'payout', $id, 'payout_marked_paid',
+			array( 'status' => 'pending' ),
+			array( 'status' => 'paid', 'reference' => $reference )
+		);
+
+		// Auto-close the item.
+		$wpdb->update(
+			CVT_DB::items(),
+			array( 'status' => 'closed', 'updated_at' => CVT_DB::now() ),
+			array( 'id' => absint( $payout->item_id ) ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+
+		CVT_Activity_Log::log( 'item', absint( $payout->item_id ), 'status_changed',
+			array( 'status' => 'sold' ),
+			array( 'status' => 'closed' ),
+			'Auto-closed after payout marked paid.'
+		);
+
+		return new WP_REST_Response( array(
+			'success' => true,
+			'message' => 'Payout marked paid and item closed.',
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /waitlist
+	// -------------------------------------------------------------------------
+
+	public static function list_waitlist( $request ) {
+		global $wpdb;
+
+		$page     = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page = min( 100, max( 1, (int) $request->get_param( 'per_page' ) ) );
+		$search   = sanitize_text_field( $request->get_param( 's' ) );
+		$status   = sanitize_text_field( $request->get_param( 'status' ) );
+		$tag      = sanitize_text_field( $request->get_param( 'tag' ) );
+		$offset   = ( $page - 1 ) * $per_page;
+
+		$where  = array( '1=1' );
+		$params = array();
+
+		if ( $search !== '' ) {
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[]  = '( w.client_name LIKE %s OR w.phone LIKE %s OR w.description LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+		}
+		if ( $status !== '' ) {
+			$where[]  = 'w.status = %s';
+			$params[] = $status;
+		}
+		if ( $tag !== '' ) {
+			$where[]  = 'w.tags LIKE %s';
+			$params[] = '%' . $wpdb->esc_like( '"' . $tag . '"' ) . '%';
+		}
+
+		$where_sql = implode( ' AND ', $where );
+		$table     = CVT_DB::waitlist();
+
+		$count_sql = "SELECT COUNT(*) FROM $table w WHERE $where_sql";
+		$total     = (int) ( $params
+			? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
+			: $wpdb->get_var( $count_sql ) );
+
+		$select_sql   = "SELECT w.*, u.display_name AS agent_name
+			FROM $table w
+			LEFT JOIN {$wpdb->users} u ON u.ID = w.assigned_agent_id
+			WHERE $where_sql
+			ORDER BY w.created_at DESC LIMIT %d OFFSET %d";
+		$query_params = array_merge( $params, array( $per_page, $offset ) );
+		$entries      = $wpdb->get_results( $wpdb->prepare( $select_sql, ...$query_params ) );
+
+		// Decode JSON fields for the response.
+		foreach ( $entries as $entry ) {
+			$entry->tags          = CVT_Waitlist::decode_tags( $entry->tags );
+			$entry->request_items = CVT_Waitlist::decode_items( $entry->request_items );
+		}
+
+		return new WP_REST_Response( array(
+			'entries'     => $entries,
+			'total'       => $total,
+			'page'        => $page,
+			'per_page'    => $per_page,
+			'total_pages' => (int) ceil( $total / $per_page ),
+		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST /waitlist
+	// -------------------------------------------------------------------------
+
+	public static function create_waitlist_entry( $request ) {
+		$params = $request->get_params();
+
+		// Delegate to the model — it handles sanitization, permission check, and insert.
+		$id = CVT_Waitlist::create( $params );
+
+		if ( is_wp_error( $id ) ) {
+			$code = $id->get_error_code() === 'permission' ? 403 : 500;
+			return new WP_Error( $id->get_error_code(), $id->get_error_message(), array( 'status' => $code ) );
+		}
+
+		return new WP_REST_Response( array(
+			'success'  => true,
+			'entry_id' => $id,
+			'message'  => 'Waitlist entry created.',
+		), 201 );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /waitlist/{id}
+	// -------------------------------------------------------------------------
+
+	public static function get_waitlist_entry( $request ) {
+		$id    = absint( $request->get_param( 'id' ) );
+		$entry = CVT_Waitlist::get( $id );
+
+		if ( ! $entry ) {
+			return new WP_Error( 'not_found', 'Waitlist entry not found.', array( 'status' => 404 ) );
+		}
+
+		$entry->tags          = CVT_Waitlist::decode_tags( $entry->tags );
+		$entry->request_items = CVT_Waitlist::decode_items( $entry->request_items );
+
+		return new WP_REST_Response( array( 'entry' => $entry ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// PATCH /waitlist/{id}
+	// -------------------------------------------------------------------------
+
+	public static function update_waitlist_entry( $request ) {
+		$id     = absint( $request->get_param( 'id' ) );
+		$params = $request->get_params();
+
+		$result = CVT_Waitlist::update( $id, $params );
+
+		if ( is_wp_error( $result ) ) {
+			$code = $result->get_error_code() === 'not_found' ? 404 : ( $result->get_error_code() === 'permission' ? 403 : 500 );
+			return new WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $code ) );
+		}
+
+		return new WP_REST_Response( array( 'success' => true, 'message' => 'Waitlist entry updated.' ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// DELETE /waitlist/{id}
+	// -------------------------------------------------------------------------
+
+	public static function delete_waitlist_entry( $request ) {
+		$id     = absint( $request->get_param( 'id' ) );
+		$result = CVT_Waitlist::delete( $id );
+
+		if ( is_wp_error( $result ) ) {
+			$code = $result->get_error_code() === 'not_found' ? 404 : ( $result->get_error_code() === 'permission' ? 403 : 500 );
+			return new WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $code ) );
+		}
+
+		return new WP_REST_Response( array( 'success' => true, 'message' => 'Waitlist entry deleted.' ), 200 );
 	}
 
 	// -------------------------------------------------------------------------

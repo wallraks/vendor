@@ -249,7 +249,7 @@ The plugin is intentionally isolated from Listivo's data model:
 
 ### Website sold sync
 
-Since v1.9.0, marking an item **Sold** also flags its listing on corido.co.ke. The listing stays published — it keeps its SEO value and shows buyers the item has gone — and only a sold flag is written.
+Since v1.9.2, marking an item **Sold** also flags its listing on corido.co.ke. The listing stays published — it keeps its SEO value and shows buyers the item has gone — and only a sold flag is written.
 
 | | |
 |---|---|
@@ -514,7 +514,7 @@ Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key` (blank means
 
 ## Changelog
 
-### 1.9.0 — Mark items Sold on the website
+### 1.9.2 — Mark items Sold on the website
 
 **New features**
 - Marking an item **Sold** now flags its Listivo listing on corido.co.ke. The listing stays published; only the sold flag is written, so the page keeps its SEO value and buyers can see the item has gone.
@@ -530,6 +530,28 @@ Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key` (blank means
 - Nothing is written unless the item's listing URL resolves to a post of the configured Listivo post type on this site. Off-site URLs, unmatched URLs and wrong post types are refused with a specific message.
 - A sold flag the tracker did not set is never deleted. The pre-sync value is kept in a `_cvt_sold_synced` marker and restored on reversal.
 - Every attempt is written to the item's activity log: `listing_marked_sold`, `listing_unmarked_sold`, `listing_sync_failed`.
+
+---
+
+### 1.9.0 — REST API: full items, payouts & waitlist coverage
+
+**New endpoints**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET    | `/items` | List items — filters: `s`, `vendor_id`, `status`, `category`, `deal_type`, `page`, `per_page` |
+| GET    | `/items/{id}` | Single item with images |
+| PATCH  | `/items/{id}` | Update item fields |
+| DELETE | `/items/{id}` | Delete item (cascades: images, pending payouts) |
+| POST   | `/items/{id}/status` | Transition status; auto-creates payout on `sold`; voids pending payout on reverse; reverse requires `cvt_manage_settings` |
+| GET    | `/payouts` | List payouts — filters: `s`, `status`, `vendor_id`, `page`, `per_page` |
+| GET    | `/payouts/{id}` | Single payout |
+| POST   | `/payouts/{id}/mark-paid` | Mark payout paid + auto-close item (`reference_number` required) |
+| GET    | `/waitlist` | List entries — filters: `s`, `status`, `tag`, `page`, `per_page` |
+| POST   | `/waitlist` | Create waitlist entry |
+| GET    | `/waitlist/{id}` | Single entry (tags and request_items decoded to arrays) |
+| PATCH  | `/waitlist/{id}` | Update entry |
+| DELETE | `/waitlist/{id}` | Delete entry (owner or admin only) |
 
 ---
 

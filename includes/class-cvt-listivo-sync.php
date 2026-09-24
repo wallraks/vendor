@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  * resolves to a listing on this site. Every attempt — success or failure —
  * is written to the activity log.
  *
- * @since 1.9.0
+ * @since 1.9.2
  */
 class CVT_Listivo_Sync {
 

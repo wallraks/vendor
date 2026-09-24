@@ -476,7 +476,17 @@ All AJAX calls require the `cvt_ajax` nonce passed as `nonce`.
 
 ### The `cvt_item_status_changed` action
 
-Fired at the end of `CVT_Item::update_status()`, and by `CVT_Payout::mark_paid()` for the automatic `sold → closed` step:
+Fired wherever an item's status changes, so a consumer sees every sale however it was made:
+
+| Fired from | For |
+|---|---|
+| `CVT_Item::update_status()` | Any status change made in the admin UI |
+| `CVT_Payout::mark_paid()` | The automatic `sold → closed` step |
+| `POST /items/{id}/status` | Status changes made over the REST API |
+| `POST /payouts/{id}/mark-paid` | The API's automatic `sold → closed` step |
+
+The two REST endpoints write the status directly rather than calling `CVT_Item::update_status()`, so they fire the action themselves — without that, a sale made over the API would never reach the website listing.
+
 
 ```php
 do_action( 'cvt_item_status_changed', $item_id, $old_status, $new_status );
@@ -519,7 +529,7 @@ Settings options: `cvt_sold_sync_enabled`, `cvt_sold_sync_meta_key` (blank means
 **New features**
 - Marking an item **Sold** now flags its Listivo listing on corido.co.ke. The listing stays published; only the sold flag is written, so the page keeps its SEO value and buyers can see the item has gone.
 - Reversing a sale (`sold → posted` / `inquiry_received` / `withdrawn`) removes the flag again. `sold → closed` is a no-op — the listing is already flagged.
-- New class `includes/class-cvt-listivo-sync.php`, driven by a new `cvt_item_status_changed` action fired from `CVT_Item::update_status()` and `CVT_Payout::mark_paid()`.
+- New class `includes/class-cvt-listivo-sync.php`, driven by a new `cvt_item_status_changed` action fired from all four places an item's status changes: `CVT_Item::update_status()`, `CVT_Payout::mark_paid()`, `POST /items/{id}/status` and `POST /payouts/{id}/mark-paid`. The REST endpoints write status directly, so a sale made over the API syncs to the website too.
 - **Settings → Website Sold Sync**: on/off, the listing field key (blank = auto-detect) and value (default `1`), and an optional taxonomy + term for themes that render badges from a taxonomy.
 - The sold field key is detected from the site rather than guessed: the sync tries `_listivo1_listing_sold`, `listivo1_listing_sold`, `_sold`, `sold` and uses the one your listings carry, matching how the existing price lookup handles Listivo's prefixed field names. Settings reports whether the key was confirmed against real data or is an unverified fallback.
 - New **Sold Field Finder** card in Settings lists every listing field whose name mentions "sold", with listing counts and a sample value — it names the real key without anyone opening a Custom Fields panel.

@@ -466,6 +466,28 @@ You would also need to fire `do_action( 'cvt_item_status_changed', $id, $old, $n
 
 ## Changelog
 
+### 1.9.0 — REST API: full items, payouts & waitlist coverage
+
+**New endpoints**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET    | `/items` | List items — filters: `s`, `vendor_id`, `status`, `category`, `deal_type`, `page`, `per_page` |
+| GET    | `/items/{id}` | Single item with images |
+| PATCH  | `/items/{id}` | Update item fields |
+| DELETE | `/items/{id}` | Delete item (cascades: images, pending payouts) |
+| POST   | `/items/{id}/status` | Transition status; auto-creates payout on `sold`; voids pending payout on reverse; reverse requires `cvt_manage_settings` |
+| GET    | `/payouts` | List payouts — filters: `s`, `status`, `vendor_id`, `page`, `per_page` |
+| GET    | `/payouts/{id}` | Single payout |
+| POST   | `/payouts/{id}/mark-paid` | Mark payout paid + auto-close item (`reference_number` required) |
+| GET    | `/waitlist` | List entries — filters: `s`, `status`, `tag`, `page`, `per_page` |
+| POST   | `/waitlist` | Create waitlist entry |
+| GET    | `/waitlist/{id}` | Single entry (tags and request_items decoded to arrays) |
+| PATCH  | `/waitlist/{id}` | Update entry |
+| DELETE | `/waitlist/{id}` | Delete entry (owner or admin only) |
+
+---
+
 ### 1.8.0 — REST API: DELETE vendor endpoint
 
 **New endpoint**
